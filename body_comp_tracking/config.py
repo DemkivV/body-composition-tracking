@@ -3,89 +3,134 @@ Configuration management for the application.
 """
 import os
 import json
+import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Default configuration
 DEFAULT_CONFIG = {
     "withings": {
         "client_id": "",
         "client_secret": "",
-        "redirect_uri": "http://localhost:8000/callback",
+        "redirect_uri": "http://localhost:8000/callback"
     },
-    "data_dir": "data"
+    "general": {
+        "data_dir": "~/.local/share/body_comp_tracking"
+    }
 }
 
-CONFIG_DIR = Path.home() / ".body_comp_tracking"
-CONFIG_FILE = CONFIG_DIR / "config.json"
+def get_config_dir() -> str:
+    """
+    Get the configuration directory path.
+    
+    Returns:
+        str: Path to the configuration directory
+    """
+    try:
+        import appdirs
+        config_dir = appdirs.user_config_dir("body_comp_tracking")
+    except ImportError:
+        # Fallback to a default directory if appdirs is not available
+        config_dir = os.path.join(os.path.expanduser("~"), ".config", "body_comp_tracking")
+    
+    os.makedirs(config_dir, exist_ok=True)
+    return config_dir
 
-
-def ensure_config_dir() -> None:
-    """Ensure the configuration directory exists."""
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-
+def get_config_path() -> str:
+    """
+    Get the path to the configuration file.
+    
+    Returns:
+        str: Path to the configuration file
+    """
+    return os.path.join(get_config_dir(), "config.json")
 
 def load_config() -> Dict[str, Any]:
-    """Load the configuration file.
+    """
+    Load the configuration from file.
     
     Returns:
         Dict containing the configuration
     """
-    ensure_config_dir()
-    
-    if not CONFIG_FILE.exists():
-        # Create default config if it doesn't exist
-        save_config(DEFAULT_CONFIG)
+    config_path = get_config_path()
+    if not os.path.exists(config_path):
         return DEFAULT_CONFIG.copy()
     
     try:
-        with open(CONFIG_FILE, 'r') as f:
+        with open(config_path, 'r') as f:
             config = json.load(f)
             # Ensure all default values are present
             for key, value in DEFAULT_CONFIG.items():
                 if key not in config:
                     config[key] = value
             return config
-    except (json.JSONDecodeError, IOError):
-        # If there's an error reading the config, return defaults
+    except (json.JSONDecodeError, IOError) as e:
+        logger.error(f"Failed to load config: {e}")
         return DEFAULT_CONFIG.copy()
 
-
 def save_config(config: Dict[str, Any]) -> None:
-    """Save the configuration to file.
+    """
+    Save the configuration to the config file.
     
     Args:
         config: Configuration dictionary to save
     """
-    ensure_config_dir()
-    with open(CONFIG_FILE, 'w') as f:
-        json.dump(config, f, indent=2)
-
+    config_path = get_config_path()
+    try:
+        with open(config_path, "w") as f:
+            json.dump(config, f, indent=2)
+        # Set restrictive permissions
+        os.chmod(config_path, 0o600)
+    except IOError as e:
+        logger.error(f"Failed to save config: {e}")
+        raise
 
 def get_withings_credentials() -> Dict[str, str]:
-    """Get Withings API credentials from config.
+    """
+    Get Withings API credentials from config file.
     
     Returns:
-        Dict with client_id, client_secret, and redirect_uri
+        Dict containing client_id, client_secret, and redirect_uri
     """
     config = load_config()
+    withings_config = config.get("withings", {})
+    
     return {
-        "client_id": config["withings"]["client_id"],
-        "client_secret": config["withings"]["client_secret"],
-        "redirect_uri": config["withings"]["redirect_uri"]
+        "client_id": withings_config.get("client_id", ""),
+        "client_secret": withings_config.get("client_secret", ""),
+        "redirect_uri": withings_config.get("redirect_uri", "http://localhost:8000/callback")
     }
 
-
-def set_withings_credentials(client_id: str, client_secret: str, redirect_uri: Optional[str] = None) -> None:
-    """Set Withings API credentials in config.
+def set_withings_credentials(client_id: str, client_secret: str, redirect_uri: str) -> None:
+    """
+    Save Withings API credentials to config file.
     
     Args:
-        client_id: Withings client ID
-        client_secret: Withings client secret
-        redirect_uri: Optional redirect URI (defaults to config value)
+        client_id: Withings API client ID
+        client_secret: Withings API client secret
+        redirect_uri: OAuth redirect URI
     """
     config = load_config()
-    config["withings"]["client_id"] = client_id
-    config["withings"]["client_secret"] = client_secret
-    if redirect_uri:
-        config["withings"]["redirect_uri"] = redirect_uri
+    
+    # Update or create the withings section
+    config["withings"] = {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "redirect_uri": redirect_uri or "http://localhost:8000/callback"
+    }
+    
     save_config(config)
+
+def get_token_storage_dir() -> str:
+    """
+    Get the directory for storing OAuth tokens.
+    
+    Returns:
+        str: Path to the token storage directory
+    """
+    token_dir = os.path.join(get_config_dir(), "tokens")
+    os.makedirs(token_dir, exist_ok=True)
+    return token_dir
