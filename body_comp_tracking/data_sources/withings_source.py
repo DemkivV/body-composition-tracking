@@ -16,7 +16,14 @@ from requests_oauthlib import OAuth2Session
 
 from ..models import BodyMeasurement, DataSource
 
+# Set up logging
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler()
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 class TokenStorage:
@@ -141,12 +148,15 @@ class CallbackHandler(http.server.BaseHTTPRequestHandler):
 class WithingsAuth:
     """Handles OAuth2 authentication with the Withings API using Device Flow."""
 
-    BASE_URL = "https://wbsapi.withings.com"
+    # Withings API endpoints
+    BASE_URL = "https://wbsapi.withings.net"
     AUTH_URL = "https://account.withings.com/oauth2_user/authorize2"
-    TOKEN_URL = f"{BASE_URL}/v2/oauth2"
+    TOKEN_URL = f"{BASE_URL}/v2/oauth2"  # Standard Withings token endpoint
 
-    # Scopes needed for body metrics
-    SCOPES = ["user.metrics", "user.info.read"]
+    # Start with the most basic scope for testing
+    # See: https://developer.withings.com/developer-guide/v3/
+    #   integration-guide/connect-oauth/authorization
+    SCOPES = ["user.info"]  # Basic scope for authentication
 
     def __init__(
         self,
@@ -184,13 +194,16 @@ class WithingsAuth:
         # Define the callback handler
         def handle_auth_code(code: str) -> None:
             nonlocal auth_code
-            auth_code = code
+            # Extract just the code part before any '&' or '#' characters
+            clean_code = code.split("&")[0].split("#")[0]
+            auth_code = clean_code
+            logger.debug(f"Extracted clean auth code: {auth_code}")
 
         # Create a simple HTTP server that handles one request
         def handler_factory(*args: Any, **kwargs: Any) -> CallbackHandler:
-            handler = CallbackHandler(*args, **kwargs)
-            handler.on_auth_code = handle_auth_code
-            return handler
+            # Pass the handle_auth_code callback to the CallbackHandler constructor
+            kwargs["on_auth_code"] = handle_auth_code
+            return CallbackHandler(*args, **kwargs)
 
         with socketserver.TCPServer(("localhost", port), handler_factory) as httpd:
             print(f"Listening on port {port}...")  # noqa: T201
@@ -215,22 +228,153 @@ class WithingsAuth:
         Returns:
             str: The authorization URL
         """
+        scope_string = " ".join(self.SCOPES)
+        logger.debug(f"Requesting scopes: {scope_string}")
+        logger.debug(f"Client ID: {self.client_id}")
+        logger.debug(f"Redirect URI: {self.redirect_uri}")
+
+        # Create OAuth2 session with debug logging
         oauth = OAuth2Session(
-            client_id=self.client_id, redirect_uri=self.redirect_uri, scope=self.SCOPES
+            client_id=self.client_id, redirect_uri=self.redirect_uri, scope=scope_string
         )
-        auth_url, _ = oauth.authorization_url(self.AUTH_URL)
-        # Assuming stubs provide str type for auth_url from authorization_url tuple
+
+        # Generate the authorization URL
+        auth_url, state = oauth.authorization_url(
+            self.AUTH_URL, access_type="offline", prompt="consent"
+        )
+
+        logger.debug(f"Generated auth URL: {auth_url}")
+        logger.debug(f"OAuth state: {state}")
         return auth_url
 
+    def _make_token_request(self, token_data: Dict[str, Any]) -> requests.Response:
+        """Make a token request to the Withings API.
+
+        Args:
+            token_data: The token request data
+
+        Returns:
+            The API response
+        """
+        # Log the request data (without sensitive info)
+        log_data = token_data.copy()
+        if "client_secret" in log_data:
+            log_data["client_secret"] = "***"
+        if "code" in log_data:
+            log_data["code"] = "***"
+        logger.debug(f"Token request data: {log_data}")
+
+        # Make the token request with the correct headers
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "body-composition-tracking/1.0",
+        }
+
+        logger.debug(f"Making token request to: {self.TOKEN_URL}")
+        try:
+            response = requests.post(
+                self.TOKEN_URL,
+                data=token_data,
+                headers=headers,
+                timeout=30,  # 30 seconds timeout
+            )
+            logger.debug(
+                f"Request completed in {response.elapsed.total_seconds():.2f} seconds"
+            )
+            return response
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request failed: {e}")
+            raise
+
+    def _extract_token_info(self, response_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract token information from the API response.
+
+        Args:
+            response_data: The parsed JSON response from the API
+
+        Returns:
+            Dict containing the token information
+
+        Raises:
+            Exception: If there's an error in the response or the token is invalid
+        """
+        # Check if the response has a 'body' field (Withings format)
+        if "body" in response_data and isinstance(response_data["body"], dict):
+            token_info = response_data["body"]
+            logger.debug(f"Extracted token info from 'body': {token_info}")
+        else:
+            token_info = response_data
+
+        # Check for error in response
+        if "error" in token_info:
+            error_msg = (
+                f"Withings API error: {token_info.get('error', 'Unknown error')}"
+            )
+            if "error_description" in token_info:
+                error_msg += f" - {token_info['error_description']}"
+            logger.error(error_msg)
+            raise Exception(error_msg)
+
+        # Check if we got the expected access token
+        if "access_token" not in token_info:
+            error_msg = f"No access token in response: {token_info}"
+            logger.error(error_msg)
+            raise Exception(error_msg)
+
+        return token_info
+
+    def _exchange_auth_code(self, auth_code: str) -> Dict[str, Any]:
+        """Exchange authorization code for an access token.
+
+        Args:
+            auth_code: The authorization code
+
+        Returns:
+            Dict containing the token information
+        """
+        token_data = {
+            "action": "requesttoken",
+            "grant_type": "authorization_code",
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "code": auth_code,
+            "redirect_uri": self.redirect_uri,
+        }
+
+        # Make the token request
+        response = self._make_token_request(token_data)
+
+        # Log response details
+        logger.debug(f"Token response status: {response.status_code}")
+        logger.debug(f"Token response headers: {response.headers}")
+        logger.debug(f"Token response text: {response.text}")
+
+        try:
+            response_data = response.json()
+            logger.debug(f"Raw token response: {response_data}")
+            return self._extract_token_info(response_data)
+        except json.JSONDecodeError as e:
+            error_msg = f"Failed to parse token response: {e}"
+            logger.error(f"{error_msg}. Response: {response.text}")
+            raise Exception(error_msg) from e
+
     def authenticate(self) -> Dict[str, Any]:
-        """Perform the OAuth 2.0 Device Flow authentication."""
+        """Perform the OAuth 2.0 Device Flow authentication.
+
+        Returns:
+            Dict containing the token information
+
+        Raises:
+            Exception: If authentication fails
+        """
         # Try to load existing token first
         self._token = self.token_storage.load_token()
         if self._token:
             try:
                 self.refresh_token()
                 return self._token
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Failed to refresh token: {e}")
                 # If refresh fails, clear the token and re-authenticate
                 self.token_storage.clear_token()
 
@@ -242,33 +386,19 @@ class WithingsAuth:
         )
         webbrowser.open(auth_url)
 
-        # Step 3: Start a local server to handle the callback
         try:
+            # Start a local server to handle the callback
             auth_code = self._start_local_server()
+            logger.debug(f"Received authorization code: {auth_code}")
 
-            # Step 4: Exchange the authorization code for tokens
-            oauth = OAuth2Session(
-                client_id=self.client_id,
-                redirect_uri=self.redirect_uri,
-                scope=self.SCOPES,
-            )
-            token_info = oauth.fetch_token(
-                self.TOKEN_URL,
-                code=auth_code,
-                client_secret=self.client_secret,
-                include_client_id=True,
-            )
-
-            # token_info is the result of oauth.fetch_token and should be Dict[str, Any]
-            # self._token is Optional[Dict[str, Any]]
-            self._token = token_info
-            self.token_storage.save_token(
-                self._token
-            )  # self._token is now Dict[str, Any]
-            return self._token  # Returns Dict[str, Any]
+            # Exchange the authorization code for a token
+            self._token = self._exchange_auth_code(auth_code)
+            self.token_storage.save_token(self._token)
+            logger.info("Successfully authenticated with Withings API")
+            return self._token
 
         except Exception as e:
-            print(f"Authentication failed: {e}")
+            logger.error(f"Authentication failed: {e}", exc_info=True)
             raise
 
     def refresh_token(self) -> Dict[str, Any]:

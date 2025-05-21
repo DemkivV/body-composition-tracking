@@ -22,8 +22,6 @@ class TestWithingsAuth(unittest.TestCase):
     @patch("body_comp_tracking.data_sources.withings_source.OAuth2Session")
     def test_get_auth_url(self, mock_oauth):
         """Test getting authorization URL."""
-        # Test the authorization URL generation
-        pass
         # Setup mock
         mock_session = MagicMock()
         expected_url = (
@@ -45,9 +43,12 @@ class TestWithingsAuth(unittest.TestCase):
         mock_oauth.assert_called_once_with(
             client_id=self.client_id,
             redirect_uri=self.redirect_uri,
-            scope=self.auth.SCOPES,
+            # SCOPES is a list ["user.info"] but gets joined with space in the method
+            scope="user.info",
         )
-        mock_session.authorization_url.assert_called_once_with(self.auth.AUTH_URL)
+        mock_session.authorization_url.assert_called_once_with(
+            self.auth.AUTH_URL, access_type="offline", prompt="consent"
+        )
 
 
 class TestWithingsSource(unittest.TestCase):
