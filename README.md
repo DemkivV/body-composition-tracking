@@ -23,12 +23,6 @@ A Python tool to track and analyze body composition metrics from various sources
 
 ## Installation
 
-### From PyPI (Coming Soon)
-
-```bash
-pip install body-comp-tracking
-```
-
 ### From Source
 
 1. Clone the repository:
@@ -55,30 +49,33 @@ pip install body-comp-tracking
 
 ### Withings API Setup
 
-1. Register an application in the [Withings Developer Portal](https://account.withings.com/partner/dashboard)
-2. For local development, use the following redirect URI: `http://localhost:8000/callback`
-   - This is the default and works with the built-in OAuth flow
-   - No need to expose a public endpoint for the OAuth callback
+1. The first time you use the tool, you'll be guided through the authentication process.
+2. When you run the `auth-withings` command, it will:
+   - Open a browser window for you to log in to your Withings account
+   - Request necessary permissions to access your health data
+   - Store the authentication tokens securely on your machine
+   - No manual application registration is required - we use a standard OAuth flow with a local callback server
 
-3. Set up your credentials:
-   ```bash
-   body-comp config setup-withings
-   ```
-
-   Follow the prompts to enter your Withings API credentials.
+3. The authentication tokens will be stored securely and automatically refreshed when needed, so you only need to authenticate once.
 
 ## Usage
 
 ### Authenticate with Withings
+
+To get started, you'll need to authenticate with your Withings account:
 
 ```bash
 body-comp auth-withings
 ```
 
 This will:
-1. Open a browser window for you to log in to your Withings account
-2. Request permissions to access your health data
-3. Store the authentication tokens securely on your machine
+1. Start a local server to handle the OAuth callback
+2. Open your default web browser to the Withings login page
+3. After logging in and granting permissions, you'll be redirected back to the local server
+4. The authentication tokens will be securely stored on your machine
+5. The tokens will be automatically refreshed when needed
+
+You only need to run this command once - the tokens will be stored securely and reused for future sessions.
 
 ### View Your Measurements
 
