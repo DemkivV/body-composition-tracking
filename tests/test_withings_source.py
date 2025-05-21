@@ -4,6 +4,8 @@ import unittest
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
+from requests import Response
+
 from body_comp_tracking.data_sources.withings_source import WithingsAuth, WithingsSource
 
 
@@ -53,41 +55,90 @@ class TestWithingsSource(unittest.TestCase):
 
     def setUp(self):
         """Set up test environment."""
+        # Patch requests.post for all tests in this class
+        self.requests_patcher = patch("requests.post")
+        self.mock_post = self.requests_patcher.start()
+
+        # Setup auth mock
         self.auth = MagicMock()
-        self.auth._token = {
+        self.auth.get_token.return_value = {
             "access_token": "test_token",
             "expires_at": (datetime.now() + timedelta(hours=1)).timestamp(),
         }
+
+        # Create source instance
         self.source = WithingsSource(self.auth)
-        self.source._session = MagicMock()
+
+        # Mock the session
+        self.mock_response = MagicMock(spec=Response)
+        self.mock_response.json.return_value = {
+            "status": 0,
+            "body": {"measuregrps": []},
+        }
+        self.mock_post.return_value = self.mock_response
+
+    def tearDown(self):
+        """Clean up after tests."""
+        self.requests_patcher.stop()
 
     def test_get_measurements_success(self):
         """Test successful retrieval of measurements."""
-        # Test successful measurement retrieval
-        pass
-        # Mock API response
-        mock_response = MagicMock()
-        mock_response.json.return_value = {
+        # Setup mock API response
+        self.mock_response.json.return_value = {
             "status": 0,
             "body": {
                 "measuregrps": [
                     {
                         "grpid": 123,
                         "attrib": 0,
-                        "date": 1672531200,  # 2023-01-01 00:00:00
+                        "date": 1672531200,  # 2023-01-01 00:00:00 UTC
                         "category": 1,
                         "measures": [
-                            {"value": 75000, "type": 1, "unit": -3},  # 75.0 kg
-                            {"value": 2000, "type": 6, "unit": -2},  # 20.0%
-                            {"value": 60000, "type": 5, "unit": -3},  # 60.0 kg
-                            {"value": 6000, "type": 8, "unit": -2},  # 60.0%
-                            {"value": 3000, "type": 11, "unit": -3},  # 3.0 kg
+                            {
+                                "value": 75000,
+                                "type": 1,
+                                "unit": -3,
+                                "algo": 0,
+                                "fm": 1,
+                                "fwid": 1,
+                            },  # 75.0 kg
+                            {
+                                "value": 2000,
+                                "type": 6,
+                                "unit": -2,
+                                "algo": 0,
+                                "fm": 1,
+                                "fwid": 1,
+                            },  # 20.0%
+                            {
+                                "value": 60000,
+                                "type": 5,
+                                "unit": -3,
+                                "algo": 0,
+                                "fm": 1,
+                                "fwid": 1,
+                            },  # 60.0 kg
+                            {
+                                "value": 6000,
+                                "type": 8,
+                                "unit": -2,
+                                "algo": 0,
+                                "fm": 1,
+                                "fwid": 1,
+                            },  # 60.0%
+                            {
+                                "value": 3000,
+                                "type": 11,
+                                "unit": -3,
+                                "algo": 0,
+                                "fm": 1,
+                                "fwid": 1,
+                            },  # 3.0 kg
                         ],
                     }
                 ]
             },
         }
-        self.source._session.post.return_value = mock_response
 
         # Call the method
         start_date = datetime(2023, 1, 1)
@@ -103,35 +154,41 @@ class TestWithingsSource(unittest.TestCase):
         self.assertEqual(measurements[0].bone_mass_kg, 3.0)
 
         # Verify API call
-        self.source._session.post.assert_called_once()
-        _, kwargs = self.source._session.post.call_args
-        self.assertEqual(kwargs["data"]["action"], "getmeas")
+        self.mock_post.assert_called_once()
 
-        # Convert test timestamps to local timezone for comparison
-        import datetime as dt
+        # Get the arguments passed to requests.post
+        args, kwargs = self.mock_post.call_args
 
-        local_tz = dt.datetime.now(dt.timezone.utc).astimezone().tzinfo
-        test_start = dt.datetime(2023, 1, 1, tzinfo=dt.timezone.utc).astimezone(
-            local_tz
-        )
-        test_end = dt.datetime(2023, 1, 2, tzinfo=dt.timezone.utc).astimezone(local_tz)
+        # Verify the URL and headers
+        self.assertEqual(args[0], "https://wbsapi.withings.com/v2/measure")
+        self.assertEqual(kwargs["headers"]["Authorization"], "Bearer test_token")
 
-        self.assertEqual(int(kwargs["data"]["startdate"]), int(test_start.timestamp()))
-        self.assertEqual(int(kwargs["data"]["enddate"]), int(test_end.timestamp()))
-        self.assertEqual(kwargs["data"]["meastypes"], "[1, 6, 5, 8, 11]")
-        self.assertEqual(
-            int(kwargs["data"]["category"]), 1
-        )  # Category should be an integer
-        self.assertEqual(int(kwargs["data"]["lastupdate"]), int(test_start.timestamp()))
+        # Verify the request parameters
+        params = kwargs["params"]
+        self.assertEqual(params["action"], "getmeas")
+
+        # Verify timestamp parameters
+        expected_start_ts = int(start_date.timestamp())
+        expected_end_ts = int(end_date.timestamp())
+
+        self.assertEqual(int(params["startdate"]), expected_start_ts)
+        self.assertEqual(int(params["enddate"]), expected_end_ts)
+        self.assertEqual(int(params["lastupdate"]), expected_start_ts)
+
+        # Verify meastypes is a list
+        self.assertIsInstance(params["meastypes"], list)
+        self.assertSetEqual(set(params["meastypes"]), {1, 5, 6, 8, 11})
+
+        # Verify other parameters
+        self.assertEqual(int(params["category"]), 1)  # Category should be an integer
 
     def test_get_measurements_empty(self):
         """Test retrieval when no measurements are found."""
-        # Test empty measurement retrieval
-        pass
-        # Mock empty API response
-        mock_response = MagicMock()
-        mock_response.json.return_value = {"status": 0, "body": {"measuregrps": []}}
-        self.source._session.post.return_value = mock_response
+        # Setup empty API response (already set in setUp)
+        self.mock_response.json.return_value = {
+            "status": 0,
+            "body": {"measuregrps": []},
+        }
 
         # Call the method
         start_date = datetime(2023, 1, 1)
@@ -140,6 +197,20 @@ class TestWithingsSource(unittest.TestCase):
 
         # Verify results
         self.assertEqual(len(measurements), 0)
+
+        # Verify the API was called with the correct parameters
+        self.mock_post.assert_called_once()
+
+        # Get the arguments passed to requests.post
+        args, kwargs = self.mock_post.call_args
+
+        # Verify the URL and headers
+        self.assertEqual(args[0], "https://wbsapi.withings.com/v2/measure")
+        self.assertEqual(kwargs["headers"]["Authorization"], "Bearer test_token")
+
+        # Verify the request parameters
+        params = kwargs["params"]
+        self.assertEqual(params["action"], "getmeas")
 
 
 if __name__ == "__main__":
