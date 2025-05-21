@@ -39,3 +39,6 @@
 2.  **Error Resolution:**
     *   Prioritize fixing structural errors or file corruption (e.g., indentation issues from faulty edits) before other logical errors.
     *   Address Mypy errors related to type stubs by ensuring stubs are listed in *both* `pyproject.toml`
+3.  **Pre-Commit Hooks:**
+    *   Run `pre-commit run --all-files` to ensure the codebase is in a valid state when finishing your work.
+    *   If you get an error, address it and run the hook again. If it persists, ask for help.
