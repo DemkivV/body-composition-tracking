@@ -1,3 +1,1 @@
-"""
-Test suite for body composition tracking.
-"""
+"""Test suite for body composition tracking."""

@@ -64,7 +64,7 @@ pip install body-comp-tracking
    ```bash
    body-comp config setup-withings
    ```
-   
+
    Follow the prompts to enter your Withings API credentials.
 
 ## Usage

@@ -39,6 +39,6 @@ repos:
     rev: v1.5.1
     hooks:
     -   id: mypy
-        additional_dependencies: [types-requests, types-python-dateutil, types-pyyaml, types-oauthlib]
+        additional_dependencies: [types-requests, types-python-dateutil, types-pyyaml, types-oauthlib, types-click, types-tabulate, types-requests-oauthlib]
         args: [--strict, --ignore-missing-imports, --disallow-untyped-defs]
         exclude: ^tests/

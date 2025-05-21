@@ -1,0 +1,41 @@
+## Cascade Agent Coding Guidelines for body-composition-tracking
+
+### Mypy & Typing:
+1.  **Type Stubs for Dependencies:**
+    *   Ensure all external dependencies have corresponding type stubs (e.g., `types-*` packages) listed in both `pyproject.toml` (under `[project.optional-dependencies].dev`) AND in `.pre-commit-config.yaml` (under the `mypy` hook's `additional_dependencies`). This is crucial for `mypy` to correctly type-check code using these libraries, both locally and in pre-commit hooks.
+    *   Affected libraries so far: `requests`, `python-dateutil`, `pyyaml`, `oauthlib`, `requests-oauthlib`, `click`, `tabulate`.
+
+2.  **Function Signatures:**
+    *   All functions and methods must have explicit type hints for all arguments and for the return type.
+    *   If a function does not return a value, annotate it with `-> None`.
+    *   For Click CLI commands that act as entry points and might return an exit code, use `-> int`.
+
+3.  **Return Value Consistency:**
+    *   Ensure the actual returned values from a function match its declared return type. Pay attention to Mypy errors like "No return value expected" or "Incompatible return value type."
+
+4.  **`Optional` Types:**
+    *   If a function or method from an external library can return `None` (making its type `Optional[...]`), always check for `None` before using the value, especially if subsequent operations expect a non-optional type.
+    *   If Mypy indicates a `None` check is "unreachable" or a `type: ignore` for an Optional is "unused," it often means the type stubs guarantee a non-Optional return. In such cases, the `None` check and/or `type: ignore` can be removed.
+
+5.  **`Any` Type:**
+    *   Avoid `Any` where possible. If `mypy` complains about `Any` (e.g., "Returning Any from function declared to return X" or "Implicit generic 'Any'"), try to provide more specific types.
+    *   If type stubs are correctly installed, explicit `cast`s should rarely be needed. If a `cast` is used and later `mypy` flags it as "redundant," remove it.
+
+6.  **Dictionary Typing:** Use `Dict[key_type, value_type]` instead of just `dict` (e.g., `List[Dict[str, Any]]` instead of `List[dict]`).
+
+### Flake8 & Code Style:
+1.  **Line Length (E501):**
+    *   Adhere to the 88-character line limit.
+    *   Format long lines by breaking them down or shortening comments.
+    *   Black and isort should handle most formatting, but comments or very long strings might need manual adjustment.
+
+### Pytest:
+1.  **Mocking:**
+    *   When mocking objects, ensure the attributes you set or access on the mock (e.g., `mock_auth.token` vs `mock_auth._token`) exactly match the attribute names used by the code under test. Mismatches can lead to tests passing with mocks but failing to reflect real behavior or causing unexpected errors in the code.
+
+### General:
+1.  **Tool Usage:**
+    *   When using `replace_file_content`, ensure `TargetContent` is an *exact* match of the current content in the file. Use `view_line_range` to confirm if unsure. Inaccuracies can lead to corrupted files.
+2.  **Error Resolution:**
+    *   Prioritize fixing structural errors or file corruption (e.g., indentation issues from faulty edits) before other logical errors.
+    *   Address Mypy errors related to type stubs by ensuring stubs are listed in *both* `pyproject.toml`
