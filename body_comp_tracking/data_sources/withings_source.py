@@ -207,9 +207,11 @@ class WithingsAuth:
 
         with socketserver.TCPServer(("localhost", port), handler_factory) as httpd:
             print(f"Listening on port {port}...")  # noqa: T201
-            print("Please visit this URL to authorize the application:")  # noqa: T201
+            print(
+                "Please visit this URL to authorize the application"
+                " (if your browser didn't open automatically):"
+            )  # noqa: T201
             print(self.get_auth_url())  # noqa: T201
-            webbrowser.open(self.get_auth_url())
             httpd.handle_request()
 
             # Wait for the auth code or timeout
@@ -571,9 +573,6 @@ class WithingsSource(DataSource):
                 timestamp=timestamp,
                 weight_kg=measures.get(1),  # Weight in kg
                 body_fat_percent=measures.get(6),  # Fat ratio in %
-                muscle_mass_kg=measures.get(5),  # Muscle mass in kg
-                hydration_percent=measures.get(8),  # Hydration in %
-                bone_mass_kg=measures.get(11),  # Bone mass in kg
                 source="withings",
             )
             measurements.append(measurement)

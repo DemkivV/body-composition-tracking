@@ -150,9 +150,6 @@ class TestWithingsSource(unittest.TestCase):
         self.assertEqual(len(measurements), 1)
         self.assertEqual(measurements[0].weight_kg, 75.0)
         self.assertEqual(measurements[0].body_fat_percent, 20.0)
-        self.assertEqual(measurements[0].muscle_mass_kg, 60.0)
-        self.assertEqual(measurements[0].hydration_percent, 60.0)
-        self.assertEqual(measurements[0].bone_mass_kg, 3.0)
 
         # Verify API call
         self.mock_post.assert_called_once()

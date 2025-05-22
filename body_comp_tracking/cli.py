@@ -76,6 +76,20 @@ def auth_withings() -> int:
 
 
 @cli.command()
+def gui() -> None:
+    """Launch the PyWebview-based GUI application."""
+    try:
+        from .gui.app import main
+
+        main()
+    except ImportError as e:
+        click.echo(f"❌ Error: {e}")
+        click.echo("Please install the required GUI dependencies with:")
+        click.echo("  pip install pywebview PyQt5")
+        sys.exit(1)
+
+
+@cli.command()
 @click.option(
     "--days", default=30, help="Number of days of data to fetch (default: 30)"
 )
@@ -99,20 +113,36 @@ def _format_measurements(measurements: List[Dict[str, Any]], format_type: str) -
         )
     if format_type == "json":
         return json.dumps(measurements, indent=2)
+    if format_type == "csv":
+        import csv
+        import io
 
-    # Handle CSV format
-    import csv
-    from io import StringIO
+        if not measurements:
+            return ""
 
-    output = StringIO()
-    fieldnames = measurements[0].keys() if measurements else []
-    writer = csv.DictWriter(output, fieldnames=fieldnames)
-    writer.writeheader()
-    writer.writerows(measurements)
-    return output.getvalue()
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=measurements[0].keys())
+        writer.writeheader()
+        writer.writerows(measurements)
+        return output.getvalue()
+
+    return ""
 
 
-def show_measurements(days: int, output: Optional[str], format_type: str) -> int:
+@cli.command()
+@click.option(
+    "--days", default=30, help="Number of days of measurements to show (default: 30)"
+)
+@click.option(
+    "--output", type=click.Path(), help="Output file path to save data as JSON"
+)
+@click.option(
+    "--format",
+    type=click.Choice(["table", "json", "csv"], case_sensitive=False),
+    default="table",
+    help="Output format (default: table)",
+)
+def show_measurements(days: int, output: Optional[str], format_type: str) -> None:
     """Show recent body composition measurements.
 
     Args:
@@ -123,65 +153,51 @@ def show_measurements(days: int, output: Optional[str], format_type: str) -> int
     creds = get_withings_credentials()
     if not creds["client_id"] or not creds["client_secret"]:
         click.echo(
-            "❌ Please configure Withings credentials first using 'config setup-withings'"  # noqa: E501
+            "❌ Please configure Withings credentials using 'config setup-withings'"
         )
-        return 1
+        return
 
     try:
-        # Initialize auth and source
         auth = WithingsAuth(**creds)
         source = WithingsSource(auth)
 
-        # Calculate date range
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
 
         click.echo(
-            f"📊 Fetching measurements from {start_date.date()} to {end_date.date()}..."  # noqa: E501
+            f"Fetching measurements from {start_date.date()} to {end_date.date()}..."
         )
-
-        # Get measurements
         measurements = source.get_measurements(start_date, end_date)
 
         if not measurements:
-            click.echo(f"ℹ️ No measurements found in the last {days} days.")
-            return 0
+            click.echo("No measurements found in the specified date range.")
+            return
 
-        # Sort by date descending
-        measurements.sort(key=lambda x: x.timestamp, reverse=True)
-
-        # Format measurements for display
-        formatted_measurements = [
+        # Convert measurements to a list of dicts for formatting
+        measurements_data = [
             {
-                "Date": m.timestamp.strftime("%Y-%m-%d %H:%M"),
-                "Weight (kg)": m.weight_kg,
-                "Body Fat (%)": m.body_fat_percent,
-                "Muscle Mass (kg)": m.muscle_mass_kg,
-                "Hydration (%)": m.hydration_percent,
-                "Bone Mass (kg)": m.bone_mass_kg,
-                "Source": m.source,
+                "date": m.timestamp.strftime("%Y-%m-%d %H:%M"),
+                "weight_kg": m.weight_kg,
+                "fat_percent": m.body_fat_percent,
             }
             for m in measurements
         ]
 
-        # Get output in requested format
-        output_str = _format_measurements(formatted_measurements, format_type)
+        # Format the output
+        formatted = _format_measurements(measurements_data, format_type)
 
         # Output to file or console
         if output:
             with open(output, "w") as f:
-                f.write(output_str)
+                f.write(formatted)
             click.echo(f"✅ Data saved to {output}")
         else:
-            click.echo(output_str)
-
-        return 0
+            click.echo(formatted)
 
     except Exception as e:
-        logger.error(f"Error fetching measurements: {str(e)}", exc_info=True)
-        click.echo(f"❌ Error: {str(e)}", err=True)
-        return 1
+        logger.error("Failed to fetch measurements: %s", str(e))
+        click.echo(f"❌ Failed to fetch measurements: {str(e)}")
 
 
 if __name__ == "__main__":
-    sys.exit(cli())
+    cli()

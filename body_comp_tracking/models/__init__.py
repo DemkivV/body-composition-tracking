@@ -12,10 +12,6 @@ class BodyMeasurement:
     timestamp: datetime
     weight_kg: Optional[float] = None
     body_fat_percent: Optional[float] = None
-    muscle_mass_kg: Optional[float] = None
-    hydration_percent: Optional[float] = None
-    bone_mass_kg: Optional[float] = None
-    bmi: Optional[float] = None
     source: str = "unknown"
 
 

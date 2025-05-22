@@ -29,14 +29,156 @@ This approach transforms raw weight data into actionable insights about your bod
 
 ## Features
 
-- 📊 Track weight, body fat percentage, muscle mass, hydration, and bone mass
-- 🔄 Support for Withings API with OAuth 2.0 authentication
-- 🔄 Automatic token refresh and secure storage
-- 📈 View measurements in clean tabular, JSON, or CSV formats
-- 🚀 Command-line interface for easy integration with scripts and automation
-- 🔐 Secure credential and token storage
-- 🧪 Comprehensive test coverage
-- 🛠️ Modular architecture for easy extension
+- **Cross-platform Support**: Works on Windows, macOS, and Linux
+- **Multiple Data Sources**:
+  - Withings API integration
+  - (More data sources coming soon)
+- **Data Visualization**: View your body composition metrics over time
+- **Export Options**: Export your data in various formats (JSON, CSV)
+- **Command Line Interface (CLI)**: Full-featured CLI for power users and automation
+- **Graphical User Interface (GUI)**: User-friendly interface for visual data exploration
+
+## Installation
+
+### Prerequisites
+
+- Python 3.8 or higher
+- pip (Python package installer)
+
+### Installing the Package
+
+1. **Install the package** using pip:
+
+   ```bash
+   pip install body-comp-tracking
+   ```
+
+2. **For GUI Support**:
+
+   The GUI uses native WebView components on each platform. Install the appropriate backend:
+
+   - **Windows (recommended)**:
+     ```bash
+     pip install pywebview[edgechromium]  # For Edge WebView2 (recommended)
+     # OR
+     pip install pywebview[winforms]      # For MSHTML (built into Windows)
+     ```
+
+   - **macOS**:
+     ```bash
+     pip install pywebview[cocoa]
+     ```
+
+   - **Linux**:
+     ```bash
+     # For GTK-based environments (GNOME, XFCE, etc.)
+     pip install pywebview[gtk]
+
+     # OR for Qt-based environments (KDE, etc.)
+     pip install pywebview[qt]  # Requires PyQt5 or PySide2
+     ```
+
+   You can also install the package with GUI dependencies directly:
+   ```bash
+   pip install "body-comp-tracking[gui]"
+   ```
+
+## Usage
+
+### Command Line Interface (CLI)
+
+```bash
+# Show help
+body-comp --help
+
+# Configure Withings API credentials
+body-comp config setup-withings
+
+# Show measurements from the last 30 days
+body-comp show-measurements
+
+# Show measurements in JSON format
+body-comp show-measurements --format json
+
+# Show measurements and save to a file
+body-comp show-measurements --output measurements.json
+```
+
+### Graphical User Interface (GUI)
+
+Launch the GUI application:
+
+```bash
+# If installed with pip install "body-comp-tracking[gui]"
+body-comp-gui
+
+# Or directly via Python module
+python -m body_comp_tracking.gui.app
+```
+
+#### GUI Features
+
+1. **Data Import Tab**:
+   - Authenticate with Withings API
+   - Import your body composition data
+   - Clear local data
+
+2. **Raw Data Tab**:
+   - View all your measurements in a sortable table
+   - Export data to various formats
+
+3. **Analysis Tab**:
+   - Visualize your body composition metrics over time
+   - Track progress toward your fitness goals
+
+## Development
+
+### Setting Up for Development
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/yourusername/body-composition-tracking.git
+   cd body-composition-tracking
+   ```
+
+2. **Create a virtual environment**:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. **Install the package in development mode with all dependencies**:
+   ```bash
+   pip install -e ".[dev,gui]"
+   ```
+
+4. **Install pre-commit hooks**:
+   ```bash
+   pre-commit install
+   ```
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run tests with coverage report
+pytest --cov=body_comp_tracking tests/
+```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Contributing
+
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on how to submit pull requests.
+
+## Acknowledgments
+
+- Thanks to Withings for their API
+- Built with ❤️ using Python and open source tools
 
 ## Table of Contents
 
@@ -45,30 +187,6 @@ This approach transforms raw weight data into actionable insights about your bod
 - [Usage](#usage)
 - [Development](#development)
 - [License](#license)
-
-## Installation
-
-### From Source
-
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd body-composition-tracking
-   ```
-
-2. Create and activate a virtual environment (recommended):
-   ```bash
-   python -m venv venv
-   # On Windows:
-   .\venv\Scripts\activate
-   # On Unix or MacOS:
-   source venv/bin/activate
-   ```
-
-3. Install the package in development mode with all dependencies:
-   ```bash
-   pip install -e ".[dev]"
-   ```
 
 ## Configuration
 
@@ -102,140 +220,6 @@ This application uses OAuth 2.0 to securely access your Withings data. To mainta
 
 > **🔒 Data Privacy Note**: By registering your own application, you maintain full control over your health data. Your credentials and tokens are stored only on your local machine and are never transmitted to any third-party servers.
 
-## Usage
-
-### Authenticate with Withings
-
-To get started, you'll need to authenticate with your Withings account:
-
-```bash
-body-comp auth-withings
-```
-
-This will:
-1. Start a local server to handle the OAuth callback
-2. Open your default web browser to the Withings login page
-3. After logging in and granting permissions, you'll be redirected back to the local server
-4. The authentication tokens will be securely stored on your machine
-5. The tokens will be automatically refreshed when needed
-
-You only need to run this command once - the tokens will be stored securely and reused for future sessions.
-
-### View Your Measurements
-
-Show recent measurements (default: last 30 days):
-
-```bash
-body-comp show-measurements
-```
-
-Show measurements from the last 90 days:
-
-```bash
-body-comp show-measurements --days 90
-```
-
-### Output Formats
-
-#### Table (default)
-
-```bash
-body-comp show-measurements --format table
-```
-
-#### JSON
-
-```bash
-body-comp show-measurements --format json
-```
-
-#### CSV
-
-```bash
-body-comp show-measurements --format csv
-```
-
-### Save Output to File
-
-```bash
-body-comp show-measurements --output measurements.json --format json
-```
-
-## Development
-
-### Running Tests
-
-```bash
-pytest
-```
-
-### Code Style
-
-Format code with Black and isort:
-
-```bash
-black .
-isort .
-```
-
-Check code style with flake8:
-
-```bash
-flake8
-```
-
-### Type Checking
-
-```bash
-mypy .
-```
-
-### Building the Package
-
-```bash
-python -m build
-```
-
-## License
-
-MIT - See [LICENSE](LICENSE) for more information.
-
-### View Measurements
-
-Show recent measurements (last 30 days by default):
-```bash
-body-comp show-measurements
-```
-
-Show measurements for a specific date range (e.g., last 60 days):
-```bash
-body-comp show-measurements --days 60
-```
-
-## Development
-
-### Running Tests
-
-```bash
-python -m pytest tests/
-```
-
-### Code Style
-
-This project uses:
-- Black for code formatting
-- isort for import sorting
-- flake8 for linting
-- mypy for type checking
-
-Run all code quality checks:
-```bash
-black .
-isort .
-flake8
-mypy .
-```
-
 ## Architecture
 
 The application is built with modularity in mind:
@@ -245,7 +229,3 @@ The application is built with modularity in mind:
 - `body_comp_tracking/visualization/`: Data visualization components
 - `body_comp_tracking/cli.py`: Command-line interface
 - `tests/`: Unit and integration tests
-
-## License
-
-MIT

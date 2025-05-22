@@ -1,0 +1,113 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f4f4; /* Light gray background */
+    color: #333; /* Dark gray text */
+}
+h1, h2 {
+    color: #333;
+}
+.tab {
+    overflow: hidden;
+    border: 1px solid #ccc; /* Light gray border */
+    background-color: #e9e9e9; /* Slightly darker gray for tab bar */
+    border-radius: 4px 4px 0 0;
+}
+.tab button {
+    background-color: inherit;
+    float: left;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 14px 16px;
+    transition: 0.3s;
+    font-size: 16px;
+    color: #333; /* Dark text for better contrast */
+}
+.tab button:hover {
+    background-color: #ddd; /* Lighter gray on hover */
+    color: #000; /* Even darker text on hover for better contrast */
+}
+.tab button.active {
+    background-color: #4CAF50; /* Green */
+    color: white;
+    border-bottom: 2px solid #4CAF50; /* Emphasize active tab */
+    font-weight: bold; /* Make active tab text bolder */
+}
+.tabcontent {
+    display: none;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-top: none;
+    background-color: white; /* White background for content */
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Subtle shadow */
+}
+button {
+    margin: 8px 5px;
+    padding: 10px 18px; /* Slightly larger padding */
+    background-color: #4CAF50; /* Green */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+button:hover {
+    background-color: #45a049; /* Darker green on hover */
+}
+button:disabled {
+    background-color: #ccc;
+    color: #666;
+    opacity: 0.7; /* More pronounced disabled state */
+    cursor: not-allowed;
+}
+select {
+    padding: 8px;
+    margin: 5px 0 15px 0; /* Added bottom margin */
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+.status, .auth-status {
+    margin: 15px 0; /* Increased margin */
+    padding: 12px; /* Increased padding */
+    border-radius: 4px;
+    font-size: 14px;
+}
+.success {
+    background-color: #dff0d8;
+    color: #3c763d;
+    border: 1px solid #d6e9c6;
+}
+.error {
+    background-color: #f2dede;
+    color: #a94442;
+    border: 1px solid #ebccd1;
+}
+.authenticated {
+    background-color: #dff0d8; /* Same as success */
+    color: #3c763d;
+    border: 1px solid #d6e9c6;
+}
+.not-authenticated {
+    background-color: #fcf8e3; /* Yellowish for warning/neutral */
+    color: #8a6d3b;
+    border: 1px solid #faebcc;
+}
+/* Styles for the raw data table */
+#raw-data-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+#raw-data-content th, #raw-data-content td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+#raw-data-content th {
+    background-color: #f0f0f0; /* Light gray for table header */
+    color: #333;
+}
