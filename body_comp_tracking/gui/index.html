@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Body Composition Tracker</title>
+    <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <h1>Body Composition Tracker</h1>
+
+    <div class="tab">
+        <button class="tablinks active"
+                onclick="openTab(event, 'data-import')">Data Import</button>
+        <button class="tablinks"
+                onclick="openTab(event, 'raw-data')">Raw Data</button>
+        <button class="tablinks"
+                onclick="openTab(event, 'analysis')">Analysis</button>
+    </div>
+
+    <!-- Data Import Tab -->
+    <div id="data-import" class="tabcontent" style="display: block;">
+        <div class="data-source-row">
+            <label for="data-source">Data Source:</label>
+            <select id="data-source">
+                <option value="withings" selected>Withings API</option>
+            </select>
+        </div>
+
+        <div id="withings-auth-section">
+            <div class="button-group">
+                <button id="authenticate-btn" data-action="authenticate">
+                    Authenticate
+                </button>
+                <button id="import-btn" onclick="importData()" disabled>
+                    Import Data
+                </button>
+                <button id="clear-btn" onclick="clearData()" disabled>
+                    Clear Data
+                </button>
+            </div>
+            <div id="auth-status" class="auth-status not-authenticated">
+                Not authenticated yet.
+            </div>
+        </div>
+    </div>
+
+    <!-- Raw Data Tab -->
+    <div id="raw-data" class="tabcontent">
+        <p>Raw measurement data will be displayed here.</p>
+        <div id="raw-data-content"></div>
+    </div>
+
+    <!-- Analysis Tab -->
+    <div id="analysis" class="tabcontent">
+        <p>Data analysis and visualizations will be displayed here.</p>
+        <div id="analysis-content"></div>
+    </div>
+
+    <script>
+        // Ensure pywebview.api is ready
+        window.addEventListener('pywebviewready', function() {
+            console.log("pywebview API is ready.");
+            // Initialize UI elements that depend on pywebview.api or initial state
+            updateButtonStates(); // Example: update based on initial auth status from Python if available
+        });
+
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            const currentTab = document.getElementById(tabName);
+            if (currentTab) {
+                currentTab.style.display = "block";
+            }
+            if (evt && evt.currentTarget) {
+                evt.currentTarget.className += " active";
+            }
+        }
+
+        function showStatus(message, isError = false, duration = 5000) {
+            const statusDiv = document.getElementById('auth-status');
+            if (!statusDiv) {
+                console.error("Status display element 'auth-status' not found.");
+                return;
+            }
+            statusDiv.textContent = message;
+            statusDiv.className = 'auth-status ' + (isError ? 'error' : 'success');
+            statusDiv.style.display = 'block';
+
+            if (duration > 0) {
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, duration);
+            }
+        }
+
+        function updateButtonStates(isAuthenticated = false) {
+            const authBtn = document.getElementById('authenticate-btn');
+            const importBtn = document.getElementById('import-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            const authStatusEl = document.getElementById('auth-status');
+
+            if (authBtn) {
+                authBtn.disabled = isAuthenticated;
+                if (isAuthenticated) {
+                    authBtn.textContent = 'Authenticated';
+                    authBtn.className = 'authenticated';
+                } else {
+                    authBtn.textContent = 'Authenticate';
+                    authBtn.className = '';
+                }
+            }
+            if (importBtn) importBtn.disabled = !isAuthenticated;
+            if (clearBtn) clearBtn.disabled = !isAuthenticated;
+
+            if (authStatusEl) {
+                if (isAuthenticated) {
+                    authStatusEl.style.display = 'none';
+                } else {
+                    authStatusEl.textContent = 'Not authenticated yet.';
+                    authStatusEl.className = 'auth-status not-authenticated';
+                    authStatusEl.style.display = 'block';
+                }
+            }
+        }
+
+        async function authenticateWithings() {
+            if (isAuthenticating) return;
+
+            isAuthenticating = true;
+            const authBtn = document.getElementById('authenticate-btn');
+            if (authBtn) {
+                authBtn.disabled = true;
+                authBtn.textContent = 'Authenticating...';
+            }
+
+            showStatus('Authenticating...', false, 0);
+
+            try {
+                const response = await pywebview.api.authenticate();
+                if (response.success) {
+                    updateButtonStates(true);
+                } else {
+                    showStatus('Authentication failed: ' + (response.message || "Unknown error"), true);
+                    updateButtonStates(false);
+                }
+            } catch (e) {
+                console.error("Authentication API call failed:", e);
+                showStatus('Authentication error: ' + (e.message || 'Unknown error occurred'), true);
+                updateButtonStates(false);
+            } finally {
+                isAuthenticating = false;
+            }
+        }
+
+        async function importData() {
+            showStatus('Importing data...', false, 0);
+            try {
+                const response = await pywebview.api.import_data();
+                if (response.success) {
+                    showStatus(response.message);
+                    if (response.data) {
+                        displayRawData(response.data);
+                    } else {
+                         displayRawData([]);
+                    }
+                } else {
+                    showStatus('Import failed: ' + (response.message || "Unknown error"), true);
+                }
+            } catch (e) {
+                console.error("Import data API call failed:", e);
+                showStatus('Import error: ' + e.message, true);
+            }
+        }
+
+        function displayRawData(data) {
+            const tableContent = document.getElementById('raw-data-content');
+            if (!tableContent) {
+                console.error("Raw data display element 'raw-data-content' not found.");
+                return;
+            }
+            if (!data || data.length === 0) {
+                tableContent.innerHTML = '<p>No data to display.</p>';
+                return;
+            }
+            let tableHTML = '<table><thead><tr>' +
+                            '<th>Date</th>' +
+                            '<th>Weight (kg)</th><th>Fat (%)</th>' +
+                            '</tr></thead><tbody>';
+            data.forEach(item => {
+                const date = item.date ? new Date(item.date).toLocaleString() : 'N/A';
+                const weight = item.weight_kg !== null && item.weight_kg !== undefined ?
+                               parseFloat(item.weight_kg).toFixed(2) : 'N/A';
+                const fat = item.fat_percent !== null && item.fat_percent !== undefined ?
+                            parseFloat(item.fat_percent).toFixed(2) : 'N/A';
+
+                tableHTML += `<tr><td>${date}</td>` +
+                             `<td>${weight}</td>` +
+                             `<td>${fat}</td></tr>`;
+            });
+            tableHTML += '</tbody></table>';
+            tableContent.innerHTML = tableHTML;
+        }
+
+        async function clearData() {
+            if (confirm('Are you sure you want to clear all local data?')) {
+                showStatus('Clearing data...', false, 0);
+                try {
+                    const response = await pywebview.api.clear_data();
+                    if (response.success) {
+                        showStatus('Data cleared successfully.');
+                        displayRawData([]);
+                        updateButtonStates(false);
+                    } else {
+                        showStatus('Clear data failed: ' + (response.message || "Unknown error"), true);
+                    }
+                } catch (e) {
+                    console.error("Clear data API call failed:", e);
+                    showStatus('Clear data error: ' + e.message, true);
+                }
+            }
+        }
+
+        // Track if authentication is in progress
+        let isAuthenticating = false;
+
+        // Initialize the first tab and button states on DOM load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set the first tab as active
+            const firstTab = document.querySelector('.tab button');
+            if (firstTab) {
+                firstTab.classList.add('active');
+            }
+            // Show the first tab content
+            openTab({currentTarget: firstTab}, 'data-import');
+
+            // Add event delegation for buttons
+            document.addEventListener('click', function(event) {
+                const button = event.target.closest('button');
+                if (!button) return;
+
+                if (button.id === 'authenticate-btn' || button.dataset.action === 'authenticate') {
+                    event.preventDefault();
+                    if (!isAuthenticating) {
+                        authenticateWithings();
+                    }
+                }
+            });
+
+                    // Check if pywebview.api is already available
+        if (window.pywebview && window.pywebview.api) {
+            checkInitialAuthStatus();
+        }
+
+        // Check authentication status when pywebview is ready
+        window.addEventListener('pywebviewready', function() {
+            checkInitialAuthStatus();
+        });
+
+        async function checkInitialAuthStatus() {
+            try {
+                const response = await pywebview.api.is_authenticated();
+                updateButtonStates(response.authenticated);
+            } catch (e) {
+                console.error("Failed to check authentication status:", e);
+                updateButtonStates(false);
+            }
+        }
+        });
+    </script>
+    </div>
+</body>
+</html>

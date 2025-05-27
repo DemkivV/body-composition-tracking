@@ -1,0 +1,284 @@
+@import "tailwindcss";
+
+/* Dark theme variables and custom design tokens */
+@theme {
+  --color-primary-50: #f0f9ff;
+  --color-primary-100: #e0f2fe;
+  --color-primary-200: #bae6fd;
+  --color-primary-300: #7dd3fc;
+  --color-primary-400: #38bdf8;
+  --color-primary-500: #0ea5e9;
+  --color-primary-600: #0284c7;
+  --color-primary-700: #0369a1;
+  --color-primary-800: #075985;
+  --color-primary-900: #0c4a6e;
+  --color-primary-950: #082f49;
+
+  --color-accent-50: #fdf4ff;
+  --color-accent-100: #fae8ff;
+  --color-accent-200: #f5d0fe;
+  --color-accent-300: #f0abfc;
+  --color-accent-400: #e879f9;
+  --color-accent-500: #d946ef;
+  --color-accent-600: #c026d3;
+  --color-accent-700: #a21caf;
+  --color-accent-800: #86198f;
+  --color-accent-900: #701a75;
+  --color-accent-950: #4a044e;
+
+  --shadow-glow: 0 0 20px rgb(14 165 233 / 0.3);
+  --shadow-glow-accent: 0 0 20px rgb(212 70 239 / 0.3);
+  --gradient-primary: linear-gradient(135deg, var(--color-primary-600), var(--color-accent-600));
+  --gradient-surface: linear-gradient(135deg, rgb(30 41 59 / 0.7), rgb(51 65 85 / 0.7));
+}
+
+/* Base dark mode styling */
+body {
+  @apply bg-slate-950 text-slate-100 font-sans leading-relaxed;
+  background-image:
+    radial-gradient(circle at 20% 80%, rgba(14, 165, 233, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(212, 70, 239, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+  min-height: 100vh;
+  background-attachment: fixed;
+}
+
+/* Modern glassmorphism container */
+.app-container {
+  @apply max-w-6xl mx-auto p-6;
+}
+
+/* Gradient heading with modern typography */
+h1 {
+  @apply text-4xl font-bold bg-gradient-to-r from-primary-400 via-accent-400 to-primary-300 bg-clip-text text-transparent mb-10 pb-2 text-center;
+  font-family: system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.025em;
+}
+
+h2 {
+  @apply text-2xl font-semibold text-slate-200 mb-6 tracking-tight;
+}
+
+/* Modern tab system with glassmorphism */
+.tab {
+  @apply relative mb-8 rounded-2xl overflow-hidden flex;
+  background: var(--gradient-surface);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgb(148 163 184 / 0.1);
+  box-shadow: 0 8px 32px rgb(0 0 0 / 0.3);
+}
+
+.tab::before {
+  content: '';
+  @apply absolute inset-0 rounded-2xl;
+  background: linear-gradient(45deg,
+    transparent,
+    rgb(148 163 184 / 0.1),
+    transparent
+  );
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  padding: 1px;
+}
+
+/* Modern tab buttons with hover animations */
+.tab button {
+  @apply relative bg-transparent text-slate-300 border-none outline-none cursor-pointer
+         py-4 px-6 transition-all duration-300 ease-out text-base font-medium
+         hover:text-white hover:bg-slate-800/50 focus:outline-2 focus:outline-primary-500
+         focus:outline-offset-2 focus:text-white flex-1;
+  position: relative;
+  overflow: hidden;
+}
+
+.tab button::before {
+  content: '';
+  @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+  background: var(--gradient-primary);
+}
+
+.tab button:hover::before {
+  @apply opacity-10;
+}
+
+.tab button.active {
+  @apply text-white font-semibold;
+  background: var(--gradient-primary);
+  box-shadow: var(--shadow-glow);
+  opacity: 1 !important;
+  color: white !important;
+}
+
+.tab button.active::before {
+  @apply opacity-100;
+}
+
+/* Modern tab content with glassmorphism */
+.tabcontent {
+  @apply hidden p-8 rounded-2xl mt-6;
+  background: var(--gradient-surface);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgb(148 163 184 / 0.1);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.3);
+}
+
+/* Modern button system */
+button {
+  @apply relative py-3 px-6 border-none rounded-xl cursor-pointer text-sm font-semibold
+         transition-all duration-300 ease-out transform hover:scale-105 focus:outline-2
+         focus:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed
+         disabled:transform-none disabled:hover:scale-100;
+  background: var(--gradient-primary);
+  color: white;
+  box-shadow: 0 4px 20px rgb(14 165 233 / 0.3);
+  margin: 0;
+}
+
+button:hover:not(:disabled) {
+  box-shadow: var(--shadow-glow);
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-accent-500));
+}
+
+button:active:not(:disabled) {
+  @apply transform scale-95;
+}
+
+button:focus {
+  @apply outline-primary-400;
+}
+
+/* Specialized button variants */
+button.secondary {
+  @apply bg-slate-700 text-slate-200 hover:bg-slate-600;
+  box-shadow: 0 4px 20px rgb(51 65 85 / 0.3);
+}
+
+button.danger {
+  @apply bg-red-600 hover:bg-red-500;
+  box-shadow: 0 4px 20px rgb(220 38 38 / 0.3);
+}
+
+button.authenticated {
+  background: linear-gradient(135deg, #10b981, #059669);
+  @apply opacity-50 cursor-not-allowed;
+  box-shadow: 0 4px 20px rgb(16 185 129 / 0.3);
+}
+
+button.authenticated:hover {
+  background: linear-gradient(135deg, #10b981, #059669);
+  @apply transform-none scale-100;
+}
+
+/* Modern form elements */
+select {
+  @apply p-3 rounded-xl border border-slate-600 bg-slate-800/50 text-slate-200
+         focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none
+         transition-all duration-300 backdrop-blur-sm text-base;
+  margin: 0;
+}
+
+label {
+  @apply text-base font-bold text-slate-200;
+}
+
+/* Data source row layout */
+.data-source-row {
+  @apply flex items-center gap-4 mb-6;
+}
+
+/* Button group layout */
+.button-group {
+  @apply flex gap-4 mb-4;
+}
+
+/* Status system with modern design */
+.status, .auth-status {
+  @apply my-4 p-4 rounded-xl text-sm font-medium backdrop-blur-sm
+         transition-all duration-300 border;
+}
+
+.success, .authenticated {
+  @apply bg-emerald-900/30 text-emerald-300 border-emerald-500/30;
+  background-image: linear-gradient(135deg, rgb(6 78 59 / 0.3), rgb(4 120 87 / 0.3));
+  box-shadow: 0 4px 20px rgb(6 78 59 / 0.2);
+}
+
+.error {
+  @apply bg-red-900/30 text-red-300 border-red-500/30;
+  background-image: linear-gradient(135deg, rgb(127 29 29 / 0.3), rgb(153 27 27 / 0.3));
+  box-shadow: 0 4px 20px rgb(127 29 29 / 0.2);
+}
+
+.not-authenticated {
+  @apply bg-amber-900/30 text-amber-300 border-amber-500/30;
+  background-image: linear-gradient(135deg, rgb(120 53 15 / 0.3), rgb(146 64 14 / 0.3));
+  box-shadow: 0 4px 20px rgb(120 53 15 / 0.2);
+}
+
+/* Modern data table */
+#raw-data-content table {
+  @apply w-full border-collapse mt-4 rounded-xl overflow-hidden;
+  background: var(--gradient-surface);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgb(0 0 0 / 0.3);
+}
+
+#raw-data-content th,
+#raw-data-content td {
+  @apply border-b border-slate-700/50 p-4 text-left;
+}
+
+#raw-data-content th {
+  @apply bg-slate-800/80 text-slate-200 font-semibold text-sm uppercase tracking-wide;
+  background-image: var(--gradient-primary);
+  color: white;
+}
+
+#raw-data-content td {
+  @apply text-slate-300;
+}
+
+#raw-data-content tr:hover {
+  @apply bg-slate-800/30;
+}
+
+#raw-data-content tr:nth-child(even) {
+  @apply bg-slate-900/20;
+}
+
+/* Loading animations */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgb(14 165 233 / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgb(14 165 233 / 0.6);
+  }
+}
+
+.loading {
+  animation: pulse-glow 2s infinite;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .app-container {
+    @apply p-4;
+  }
+
+  h1 {
+    @apply text-3xl;
+  }
+
+  .tab button {
+    @apply py-3 px-4 text-sm;
+  }
+
+  .tabcontent {
+    @apply p-6;
+  }
+
+  button {
+    @apply py-2 px-4 text-xs;
+  }
+}

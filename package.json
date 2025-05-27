@@ -1,0 +1,37 @@
+{
+  "name": "body-composition-tracking",
+  "version": "1.0.0",
+  "description": "> **⚠️ Experimental Project Notice** > This project is currently **in active development** and should be considered experimental. > It's part of a \"vibe coding\" experiment, so please use it with caution. > The code and features may change significantly as development continues. > > While the repository is public, it's not yet recommended for production use.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:css": "npx @tailwindcss/cli -i ./body_comp_tracking/gui/src/css/input.css -o ./body_comp_tracking/gui/static/css/style.css",
+    "watch:css": "npx @tailwindcss/cli -i ./body_comp_tracking/gui/src/css/input.css -o ./body_comp_tracking/gui/static/css/style.css --watch",
+    "start:gui": "python run_gui.py",
+    "dev": "concurrently \"npm run watch:css\" \"npm run start:gui\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DemkivV/body-composition-tracking.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "CC BY-NC-SA 4.0",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/DemkivV/body-composition-tracking/issues"
+  },
+  "homepage": "https://github.com/DemkivV/body-composition-tracking#readme",
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "concurrently": "^9.1.2",
+    "postcss-cli": "^11.0.1",
+    "tailwindcss": "^4.1.7"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.1.7"
+  }
+}

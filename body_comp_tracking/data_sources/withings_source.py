@@ -9,11 +9,13 @@ import time
 import urllib.parse
 import webbrowser
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, cast
 
 import requests
 from requests_oauthlib import OAuth2Session
 
+from .. import config
 from ..models import BodyMeasurement, DataSource
 
 # Set up logging
@@ -29,20 +31,19 @@ logger.addHandler(handler)
 class TokenStorage:
     """Handles secure storage of OAuth tokens."""
 
-    def __init__(self, config_dir: Optional[str] = None) -> None:
+    def __init__(
+        self, token_file_name: str = "authentication_token_withings_api.json"
+    ) -> None:
         """Initialize token storage.
 
         Args:
-            config_dir: Optional directory to store tokens. If None, uses the default
-                config directory.
+            token_file_name: The name of the token file (e.g.,
+              'authentication_token_withings_api.json')
         """
-        from ..config import get_token_storage_dir
-
-        if config_dir is None:
-            config_dir = get_token_storage_dir()
-
-        self.token_file = os.path.join(config_dir, "withings_token.json")
-        os.makedirs(os.path.dirname(self.token_file), exist_ok=True)
+        # Ensure the data directory from config exists
+        config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        self.token_file: Path = config.DATA_DIR / token_file_name
+        logger.info(f"Token storage will use file: {self.token_file}")
 
     def save_token(self, token: Dict[str, Any]) -> None:
         """Save token to secure storage.
@@ -373,8 +374,9 @@ class WithingsAuth:
         self._token = self.token_storage.load_token()
         if self._token:
             try:
-                self.refresh_token()
-                return self._token
+                refreshed_token = self.refresh_token()
+                logger.info("Successfully refreshed Withings API token.")
+                return refreshed_token
             except Exception as e:
                 logger.warning(f"Failed to refresh token: {e}")
                 # If refresh fails, clear the token and re-authenticate
@@ -395,6 +397,11 @@ class WithingsAuth:
 
             # Exchange the authorization code for a token
             self._token = self._exchange_auth_code(auth_code)
+
+            # Add expires_at timestamp if it's not present
+            if "expires_at" not in self._token and "expires_in" in self._token:
+                self._token["expires_at"] = time.time() + self._token["expires_in"]
+
             self.token_storage.save_token(self._token)
             logger.info("Successfully authenticated with Withings API")
             return self._token
@@ -420,6 +427,11 @@ class WithingsAuth:
                 client_secret=self.client_secret,
                 refresh_token=self._token["refresh_token"],
             )
+
+            # Add expires_at timestamp if it's not present
+            if "expires_at" not in self._token and "expires_in" in self._token:
+                self._token["expires_at"] = time.time() + self._token["expires_in"]
+
             self.token_storage.save_token(self._token)
             return self._token
         except Exception as e:
@@ -440,18 +452,24 @@ class WithingsAuth:
             self._token = self.token_storage.load_token()
 
         if not self._token:
-            self.authenticate()
-            if not self._token:
-                raise ValueError("Authentication failed")
-            return self._token
+            raise ValueError(
+                "No authentication token available. Please authenticate first."
+            )
 
         # Check if token is expired or about to expire (within 60 seconds)
-        if time.time() > (self._token.get("expires_at", 0) - 60):
+        # Note: expires_at might not be present in all token formats,
+        #   so we'll be conservative
+        expires_at = self._token.get("expires_at", float("inf"))
+        if expires_at != float("inf") and time.time() > (expires_at - 60):
             try:
+                logger.info("Token is about to expire, attempting to refresh...")
                 self.refresh_token()
             except Exception as e:
                 logger.warning("Token refresh failed: %s", e)
-                self.authenticate()
+                # Don't auto-authenticate, let the user decide
+                raise ValueError(
+                    "Token has expired and refresh failed. Please re-authenticate."
+                )
 
         if not self._token:
             raise ValueError("Authentication failed after refresh attempt")

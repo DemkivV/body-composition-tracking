@@ -43,6 +43,7 @@
 ### General:
 1.  **Tool Usage:**
     *   When using `replace_file_content`, ensure `TargetContent` is an *exact* match of the current content in the file. Use `view_line_range` to confirm if unsure. Inaccuracies can lead to corrupted files.
+    *   Important note: You don't need to explicitely run `npm run build:css` or `npm run dev`, because during active development, `npm run dev` is already active, and both, TailwindCSS and pywebview are watching for changes and will automatically pick them up.
 2.  **Error Resolution:**
     *   Prioritize fixing structural errors or file corruption (e.g., indentation issues from faulty edits) before other logical errors.
     *   Address Mypy errors related to type stubs by ensuring stubs are listed in *both* `pyproject.toml`

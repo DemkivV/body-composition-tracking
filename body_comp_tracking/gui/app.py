@@ -30,6 +30,7 @@ class Api:
         self.withings_auth: Optional[WithingsAuth] = None
         self.withings_source: Optional[WithingsSource] = None
         self._initialize_auth()
+        self._check_existing_auth()
 
     def _initialize_auth(self) -> None:
         """Initialize the Withings authentication client."""
@@ -49,6 +50,37 @@ class Api:
             self.withings_source = WithingsSource(self.withings_auth)
         except Exception as e:
             logger.error(f"Failed to initialize Withings auth: {e}")
+
+    def _check_existing_auth(self) -> None:
+        """Check if valid token exists and set up the authentication state."""
+        if not self.withings_auth:
+            logger.info("No authentication client available")
+            return
+
+        try:
+            # Try to load existing token
+            existing_token = self.withings_auth.token_storage.load_token()
+            if existing_token:
+                self.withings_auth._token = existing_token
+                logger.info("Successfully loaded existing authentication token")
+        except Exception as e:
+            logger.debug(f"No existing token found or failed to load: {e}")
+
+    def is_authenticated(self) -> Dict[str, Any]:
+        """Check if the user is currently authenticated.
+
+        Returns:
+            Dict with authentication status
+        """
+        if not self.withings_auth or not self.withings_auth._token:
+            return {"authenticated": False}
+
+        try:
+            # Check if token is still valid
+            token = self.withings_auth.get_token()
+            return {"authenticated": bool(token)}
+        except Exception:
+            return {"authenticated": False}
 
     def authenticate(self) -> Dict[str, Any]:
         """Authenticate with Withings API.
@@ -114,14 +146,21 @@ class Api:
             return {"success": False, "message": f"Failed to import data: {e}"}
 
     def clear_data(self) -> Dict[str, Any]:
-        """Clear stored data.
+        """Clear stored data and authentication tokens.
 
         Returns:
             Dict with success status and message
         """
         try:
-            # In a real app, you would clear the local database or storage here
-            return {"success": True, "message": "Data cleared successfully"}
+            # Clear authentication token
+            if self.withings_auth:
+                self.withings_auth.token_storage.clear_token()
+                self.withings_auth._token = None
+            # In a real app, you would also clear the local database or storage here
+            return {
+                "success": True,
+                "message": "Data and authentication cleared successfully",
+            }
         except Exception as e:
             logger.error(f"Error clearing data: {e}")
             return {"success": False, "message": f"Failed to clear data: {e}"}
@@ -163,7 +202,7 @@ def detect_webview_backend() -> str:
 def create_gui() -> None:
     """Create and run the PyWebview GUI."""
     # Create the HTML file if it doesn't exist
-    html_file = PACKAGE_DIR / "gui" / "templates" / "index.html"
+    html_file = PACKAGE_DIR / "gui" / "index.html"
     html_file.parent.mkdir(parents=True, exist_ok=True)
 
     # Create basic HTML if it doesn't exist

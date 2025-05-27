@@ -3,10 +3,15 @@
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Any, Dict
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+# Project root directory (assuming this file is in body_comp_tracking/)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = PROJECT_ROOT / "data"
 
 # Default configuration
 DEFAULT_CONFIG = {
@@ -15,7 +20,7 @@ DEFAULT_CONFIG = {
         "client_secret": "",
         "redirect_uri": "http://localhost:8000/callback",
     },
-    "general": {"data_dir": "~/.local/share/body_comp_tracking"},
+    "general": {"data_dir": str(DATA_DIR)},  # Use the new DATA_DIR for consistency
 }
 
 
