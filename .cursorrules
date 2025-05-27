@@ -1,4 +1,11 @@
-## Cascade Agent Coding Guidelines for body-composition-tracking
+## Coding Guidelines for body-composition-tracking app
+
+### Tech Stack:
+1. Python3: for data import and preprocessing.
+2. Webview (as Python package pywebview): for GUI.
+3. Web tech (HTML5 + CSS + JavaScript): for UI via Webview, and processing (with JavaScript).
+4. Apache ECharts (as JS library): for plot visualization.
+5. TailwindCSS + PostCSS: Note that we use TailwindCSS v4, thus refer to the up-to-date documentation: https://tailwindcss.com/docs/installation/using-postcss
 
 ### Mypy & Typing:
 1.  **Type Stubs for Dependencies:**
