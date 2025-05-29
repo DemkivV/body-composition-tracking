@@ -13,9 +13,7 @@ from .config import get_withings_credentials, set_withings_credentials
 from .data_sources.withings_source import WithingsAuth, WithingsSource
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -32,9 +30,7 @@ def config() -> None:
 
 
 @config.command()
-@click.option(
-    "--client-id", prompt="Withings Client ID", help="Your Withings Client ID"
-)
+@click.option("--client-id", prompt="Withings Client ID", help="Your Withings Client ID")
 @click.option(
     "--client-secret",
     prompt="Withings Client Secret",
@@ -57,10 +53,7 @@ def auth_withings() -> int:
     """Authenticate with Withings API."""
     creds = get_withings_credentials()
     if not creds["client_id"] or not creds["client_secret"]:
-        click.echo(
-            "❌ Please configure Withings credentials first using "
-            "'config setup-withings'"
-        )
+        click.echo("❌ Please configure Withings credentials first using " "'config setup-withings'")
         return 1
 
     try:
@@ -90,12 +83,8 @@ def gui() -> None:
 
 
 @cli.command()
-@click.option(
-    "--days", default=30, help="Number of days of data to fetch (default: 30)"
-)
-@click.option(
-    "--output", type=click.Path(), help="Output file path to save data as JSON"
-)
+@click.option("--days", default=30, help="Number of days of data to fetch (default: 30)")
+@click.option("--output", type=click.Path(), help="Output file path to save data as JSON")
 @click.option(
     "--format",
     type=click.Choice(["table", "json", "csv"], case_sensitive=False),
@@ -130,12 +119,8 @@ def _format_measurements(measurements: List[Dict[str, Any]], format_type: str) -
 
 
 @cli.command()
-@click.option(
-    "--days", default=30, help="Number of days of measurements to show (default: 30)"
-)
-@click.option(
-    "--output", type=click.Path(), help="Output file path to save data as JSON"
-)
+@click.option("--days", default=30, help="Number of days of measurements to show (default: 30)")
+@click.option("--output", type=click.Path(), help="Output file path to save data as JSON")
 @click.option(
     "--format",
     type=click.Choice(["table", "json", "csv"], case_sensitive=False),
@@ -152,9 +137,7 @@ def show_measurements(days: int, output: Optional[str], format_type: str) -> Non
     """
     creds = get_withings_credentials()
     if not creds["client_id"] or not creds["client_secret"]:
-        click.echo(
-            "❌ Please configure Withings credentials using 'config setup-withings'"
-        )
+        click.echo("❌ Please configure Withings credentials using 'config setup-withings'")
         return
 
     try:
@@ -164,9 +147,7 @@ def show_measurements(days: int, output: Optional[str], format_type: str) -> Non
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
 
-        click.echo(
-            f"Fetching measurements from {start_date.date()} to {end_date.date()}..."
-        )
+        click.echo(f"Fetching measurements from {start_date.date()} to {end_date.date()}...")
         measurements = source.get_measurements(start_date, end_date)
 
         if not measurements:

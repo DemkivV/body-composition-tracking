@@ -11,12 +11,9 @@
         <h1>Body Composition Tracker</h1>
 
     <div class="tab">
-        <button class="tablinks active"
-                onclick="openTab(event, 'data-import')">Data Import</button>
-        <button class="tablinks"
-                onclick="openTab(event, 'raw-data')">Raw Data</button>
-        <button class="tablinks"
-                onclick="openTab(event, 'analysis')">Analysis</button>
+        <button class="tablinks active" data-tab="data-import">Data Import</button>
+        <button class="tablinks" data-tab="raw-data">Raw Data</button>
+        <button class="tablinks" data-tab="analysis">Analysis</button>
     </div>
 
     <!-- Data Import Tab -->
@@ -66,7 +63,19 @@
             updateButtonStates(); // Example: update based on initial auth status from Python if available
         });
 
+        // Track authentication and data import status
+        let isAuthenticated = false;
+        let hasImportedData = false;
+        let hasUnifiedData = false;
+        let isAuthenticating = false;
+
         function openTab(evt, tabName) {
+            // Check if the clicked tab is disabled
+            if (evt && evt.currentTarget && evt.currentTarget.classList.contains('disabled')) {
+                evt.preventDefault();
+                return false;
+            }
+
             var i, tabcontent, tablinks;
             tabcontent = document.getElementsByClassName("tabcontent");
             for (i = 0; i < tabcontent.length; i++) {
@@ -85,28 +94,88 @@
             }
         }
 
-        function showStatus(message, isError = false, duration = 5000) {
+        function showStatus(message, isError = false, timeout = 0) {
             const statusDiv = document.getElementById('auth-status');
-            if (!statusDiv) {
-                console.error("Status display element 'auth-status' not found.");
-                return;
-            }
+            if (!statusDiv) return;
+
             statusDiv.textContent = message;
-            statusDiv.className = 'auth-status ' + (isError ? 'error' : 'success');
+            if (isError) {
+                statusDiv.className = 'auth-status error';
+            } else if (message.includes('Successfully')) {
+                statusDiv.className = 'auth-status authenticated';
+            } else {
+                statusDiv.className = 'auth-status authenticating';
+            }
             statusDiv.style.display = 'block';
 
-            if (duration > 0) {
+            // Only hide after timeout if timeout > 0 and it's not a success message
+            if (timeout > 0 && !message.includes('Successfully')) {
                 setTimeout(() => {
-                    statusDiv.style.display = 'none';
-                }, duration);
+                    if (statusDiv && isAuthenticated) {
+                        updateAuthStatus(); // Restore auth status
+                    } else if (statusDiv && !isAuthenticated) {
+                        statusDiv.textContent = 'Not authenticated yet.';
+                        statusDiv.className = 'auth-status not-authenticated';
+                    }
+                }, timeout);
             }
         }
 
-        function updateButtonStates(isAuthenticated = false) {
+        function updateAuthStatus() {
+            const authStatus = document.getElementById('auth-status');
+            if (!authStatus) return;
+
+            if (isAuthenticated) {
+                authStatus.textContent = 'Successfully authenticated with Withings!';
+                authStatus.className = 'auth-status authenticated';
+            } else {
+                authStatus.textContent = 'Not authenticated yet.';
+                authStatus.className = 'auth-status not-authenticated';
+            }
+        }
+
+        function updateTabStates() {
+            const rawDataTab = document.querySelector('[data-tab*="raw-data"]');
+            const analysisTab = document.querySelector('[data-tab*="analysis"]');
+
+            // Raw Data and Analysis tabs are enabled only if unified data exists
+            if (rawDataTab) {
+                if (hasUnifiedData) {
+                    rawDataTab.classList.remove('disabled');
+                } else {
+                    rawDataTab.classList.add('disabled');
+                }
+            }
+
+            if (analysisTab) {
+                if (hasUnifiedData) {
+                    analysisTab.classList.remove('disabled');
+                } else {
+                    analysisTab.classList.add('disabled');
+                }
+            }
+        }
+
+        async function checkUnifiedDataStatus() {
+            try {
+                const response = await pywebview.api.has_unified_data();
+                if (response.success) {
+                    hasUnifiedData = response.has_data;
+                    updateTabStates();
+                }
+            } catch (e) {
+                console.error("Failed to check unified data status:", e);
+            }
+        }
+
+        function updateButtonStates(authenticated = null) {
+            if (authenticated !== null) {
+                isAuthenticated = authenticated;
+            }
+
             const authBtn = document.getElementById('authenticate-btn');
             const importBtn = document.getElementById('import-btn');
             const clearBtn = document.getElementById('clear-btn');
-            const authStatusEl = document.getElementById('auth-status');
 
             if (authBtn) {
                 authBtn.disabled = isAuthenticated;
@@ -121,15 +190,8 @@
             if (importBtn) importBtn.disabled = !isAuthenticated;
             if (clearBtn) clearBtn.disabled = !isAuthenticated;
 
-            if (authStatusEl) {
-                if (isAuthenticated) {
-                    authStatusEl.style.display = 'none';
-                } else {
-                    authStatusEl.textContent = 'Not authenticated yet.';
-                    authStatusEl.className = 'auth-status not-authenticated';
-                    authStatusEl.style.display = 'block';
-                }
-            }
+            updateAuthStatus();
+            updateTabStates();
         }
 
         async function authenticateWithings() {
@@ -148,13 +210,14 @@
                 const response = await pywebview.api.authenticate();
                 if (response.success) {
                     updateButtonStates(true);
+                    showStatus('Successfully authenticated with Withings!', false, 0);
                 } else {
-                    showStatus('Authentication failed: ' + (response.message || "Unknown error"), true);
+                    showStatus('Authentication failed: ' + (response.message || "Unknown error"), true, 5000);
                     updateButtonStates(false);
                 }
             } catch (e) {
                 console.error("Authentication API call failed:", e);
-                showStatus('Authentication error: ' + (e.message || 'Unknown error occurred'), true);
+                showStatus('Authentication error: ' + (e.message || 'Unknown error occurred'), true, 5000);
                 updateButtonStates(false);
             } finally {
                 isAuthenticating = false;
@@ -166,18 +229,16 @@
             try {
                 const response = await pywebview.api.import_data();
                 if (response.success) {
-                    showStatus(response.message);
-                    if (response.data) {
-                        displayRawData(response.data);
-                    } else {
-                         displayRawData([]);
-                    }
+                    showStatus(response.message, false, 0); // Success message persists
+                    hasImportedData = true;
+                    // Check for unified data after import
+                    await checkUnifiedDataStatus();
                 } else {
-                    showStatus('Import failed: ' + (response.message || "Unknown error"), true);
+                    showStatus(response.message || "Import failed", true, 5000);
                 }
             } catch (e) {
                 console.error("Import data API call failed:", e);
-                showStatus('Import error: ' + e.message, true);
+                showStatus('Import error: ' + e.message, true, 5000);
             }
         }
 
@@ -212,25 +273,41 @@
 
         async function clearData() {
             if (confirm('Are you sure you want to clear all local data?')) {
+                // Clear any previous error messages
+                updateAuthStatus();
+
                 showStatus('Clearing data...', false, 0);
                 try {
                     const response = await pywebview.api.clear_data();
                     if (response.success) {
-                        showStatus('Data cleared successfully.');
+                        showStatus(response.message);
                         displayRawData([]);
+                        hasImportedData = false;
+                        hasUnifiedData = false;
                         updateButtonStates(false);
                     } else {
-                        showStatus('Clear data failed: ' + (response.message || "Unknown error"), true);
+                        showStatus('Clear data failed: ' + (response.message || "Unknown error"), true, 0);
                     }
                 } catch (e) {
                     console.error("Clear data API call failed:", e);
-                    showStatus('Clear data error: ' + e.message, true);
+                    showStatus('Clear data error: ' + e.message, true, 0);
                 }
             }
         }
 
-        // Track if authentication is in progress
-        let isAuthenticating = false;
+        async function checkInitialAuthStatus() {
+            try {
+                const response = await pywebview.api.is_authenticated();
+                if (response.success) {
+                    updateButtonStates(response.authenticated);
+                }
+            } catch (e) {
+                console.error("Failed to check initial auth status:", e);
+            }
+
+            // Also check for existing unified data
+            await checkUnifiedDataStatus();
+        }
 
         // Initialize the first tab and button states on DOM load
         document.addEventListener('DOMContentLoaded', function() {
@@ -253,27 +330,31 @@
                         authenticateWithings();
                     }
                 }
+
+                // Handle tab clicks
+                if (button.classList.contains('tablinks')) {
+                    // Check if tab is disabled
+                    if (button.classList.contains('disabled')) {
+                        event.preventDefault();
+                        return false;
+                    }
+                    // Handle tab switching
+                    const tabName = button.dataset.tab;
+                    if (tabName) {
+                        openTab(event, tabName);
+                    }
+                }
             });
 
-                    // Check if pywebview.api is already available
-        if (window.pywebview && window.pywebview.api) {
-            checkInitialAuthStatus();
-        }
+            // Check if pywebview.api is already available
+            if (window.pywebview && window.pywebview.api) {
+                checkInitialAuthStatus();
+            }
+        });
 
         // Check authentication status when pywebview is ready
         window.addEventListener('pywebviewready', function() {
             checkInitialAuthStatus();
-        });
-
-        async function checkInitialAuthStatus() {
-            try {
-                const response = await pywebview.api.is_authenticated();
-                updateButtonStates(response.authenticated);
-            } catch (e) {
-                console.error("Failed to check authentication status:", e);
-                updateButtonStates(false);
-            }
-        }
         });
     </script>
     </div>

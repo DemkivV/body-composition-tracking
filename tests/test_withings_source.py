@@ -25,8 +25,7 @@ class TestWithingsAuth(unittest.TestCase):
         # Setup mock
         mock_session = MagicMock()
         expected_url = (
-            "https://account.withings.com/oauth2_user/authorize2?"
-            "response_type=code&client_id=test_client_id"
+            "https://account.withings.com/oauth2_user/authorize2?" "response_type=code&client_id=test_client_id"
         )
         mock_session.authorization_url.return_value = (expected_url, None)
         mock_oauth.return_value = mock_session
@@ -43,8 +42,8 @@ class TestWithingsAuth(unittest.TestCase):
         mock_oauth.assert_called_once_with(
             client_id=self.client_id,
             redirect_uri=self.redirect_uri,
-            # SCOPES is a list ["user.info"] but gets joined with space in the method
-            scope="user.info",
+            # SCOPES is a list ["user.metrics"] but gets joined with space in the method
+            scope="user.metrics",
         )
         mock_session.authorization_url.assert_called_once_with(
             self.auth.AUTH_URL, access_type="offline", prompt="consent"
@@ -102,15 +101,15 @@ class TestWithingsSource(unittest.TestCase):
                                 "algo": 0,
                                 "fm": 1,
                                 "fwid": 1,
-                            },  # 75.0 kg
+                            },  # 75.0 kg weight
                             {
                                 "value": 2000,
-                                "type": 6,
+                                "type": 8,
                                 "unit": -2,
                                 "algo": 0,
                                 "fm": 1,
                                 "fwid": 1,
-                            },  # 20.0%
+                            },  # 20.0 kg fat mass
                             {
                                 "value": 60000,
                                 "type": 5,
@@ -118,23 +117,23 @@ class TestWithingsSource(unittest.TestCase):
                                 "algo": 0,
                                 "fm": 1,
                                 "fwid": 1,
-                            },  # 60.0 kg
+                            },  # 60.0 kg fat free mass
                             {
                                 "value": 6000,
-                                "type": 8,
+                                "type": 77,
                                 "unit": -2,
                                 "algo": 0,
                                 "fm": 1,
                                 "fwid": 1,
-                            },  # 60.0%
+                            },  # 60.0 kg water mass
                             {
                                 "value": 3000,
-                                "type": 11,
+                                "type": 88,
                                 "unit": -3,
                                 "algo": 0,
                                 "fm": 1,
                                 "fwid": 1,
-                            },  # 3.0 kg
+                            },  # 3.0 kg bone mass
                         ],
                     }
                 ]
@@ -149,7 +148,7 @@ class TestWithingsSource(unittest.TestCase):
         # Verify results
         self.assertEqual(len(measurements), 1)
         self.assertEqual(measurements[0].weight_kg, 75.0)
-        self.assertEqual(measurements[0].body_fat_percent, 20.0)
+        self.assertEqual(measurements[0].body_fat_percent, 20.0)  # Fat mass in kg
 
         # Verify API call
         self.mock_post.assert_called_once()
@@ -158,11 +157,11 @@ class TestWithingsSource(unittest.TestCase):
         args, kwargs = self.mock_post.call_args
 
         # Verify the URL and headers
-        self.assertEqual(args[0], "https://wbsapi.withings.com/v2/measure")
+        self.assertEqual(args[0], "https://wbsapi.withings.net/measure")
         self.assertEqual(kwargs["headers"]["Authorization"], "Bearer test_token")
 
         # Verify the request parameters
-        params = kwargs["params"]
+        params = kwargs["data"]
         self.assertEqual(params["action"], "getmeas")
 
         # Verify timestamp parameters
@@ -173,9 +172,9 @@ class TestWithingsSource(unittest.TestCase):
         self.assertEqual(int(params["enddate"]), expected_end_ts)
         self.assertEqual(int(params["lastupdate"]), expected_start_ts)
 
-        # Verify meastypes is a list
-        self.assertIsInstance(params["meastypes"], list)
-        self.assertSetEqual(set(params["meastypes"]), {1, 5, 6, 8, 11})
+        # Verify meastypes is a string with correct values
+        self.assertIsInstance(params["meastypes"], str)
+        self.assertEqual(params["meastypes"], "1,8,5,88,77")
 
         # Verify other parameters
         self.assertEqual(int(params["category"]), 1)  # Category should be an integer
@@ -203,11 +202,11 @@ class TestWithingsSource(unittest.TestCase):
         args, kwargs = self.mock_post.call_args
 
         # Verify the URL and headers
-        self.assertEqual(args[0], "https://wbsapi.withings.com/v2/measure")
+        self.assertEqual(args[0], "https://wbsapi.withings.net/measure")
         self.assertEqual(kwargs["headers"]["Authorization"], "Bearer test_token")
 
         # Verify the request parameters
-        params = kwargs["params"]
+        params = kwargs["data"]
         self.assertEqual(params["action"], "getmeas")
 
 

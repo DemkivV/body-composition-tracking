@@ -32,18 +32,22 @@
 
 ### Flake8 & Code Style:
 1.  **Line Length (E501):**
-    *   Adhere to the 88-character line limit.
+    *   Adhere to the 120-character line limit.
     *   Format long lines by breaking them down or shortening comments.
     *   Black and isort should handle most formatting, but comments or very long strings might need manual adjustment.
 
 ### Pytest:
-1.  **Mocking:**
+1.  **Test Coverage:**
+    *   I want you to develop in a test driven way and use `pytest` in our tech stack. Write tests first according to specified requirements, then write clean code to fulfill the tests.
+2.  **Mocking:**
     *   When mocking objects, ensure the attributes you set or access on the mock (e.g., `mock_auth.token` vs `mock_auth._token`) exactly match the attribute names used by the code under test. Mismatches can lead to tests passing with mocks but failing to reflect real behavior or causing unexpected errors in the code.
 
 ### General:
 1.  **Tool Usage:**
     *   When using `replace_file_content`, ensure `TargetContent` is an *exact* match of the current content in the file. Use `view_line_range` to confirm if unsure. Inaccuracies can lead to corrupted files.
     *   Important note: You don't need to explicitely run `npm run build:css` or `npm run dev`, because during active development, `npm run dev` is already active, and both, TailwindCSS and pywebview are watching for changes and will automatically pick them up.
+    * Once you're done with your tasks, I want you to activate the local Python virtual environment (if necessary), and run `pytest; pre-commit run --all-files` to run the tests and quality assurance. Fix issues, if they come up, and run it again, until all issues are resolved.
+    * Please be resourceful with your tool use and combine multiple planned commands in a single tool use request (e.g. `pytest; pre-commit run --all-files` instead of running both parts separate), and then process the results of the tool use step by step.
 2.  **Error Resolution:**
     *   Prioritize fixing structural errors or file corruption (e.g., indentation issues from faulty edits) before other logical errors.
     *   Address Mypy errors related to type stubs by ensuring stubs are listed in *both* `pyproject.toml`

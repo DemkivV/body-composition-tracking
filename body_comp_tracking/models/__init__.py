@@ -23,9 +23,7 @@ class DataSource(Protocol):
     the same interface.
     """
 
-    def get_measurements(
-        self, start_date: datetime, end_date: datetime
-    ) -> List[BodyMeasurement]:
+    def get_measurements(self, start_date: datetime, end_date: datetime) -> List[BodyMeasurement]:
         """Retrieve body measurements for the given date range.
 
         Args:

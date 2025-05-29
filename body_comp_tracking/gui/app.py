@@ -5,17 +5,16 @@ import platform
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import webview
 
+from .. import config
 from ..config import get_withings_credentials
 from ..data_sources.withings_source import WithingsAuth, WithingsSource
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 # Get the directory where the package is installed
@@ -43,9 +42,7 @@ class Api:
             self.withings_auth = WithingsAuth(
                 client_id=creds["client_id"],
                 client_secret=creds["client_secret"],
-                redirect_uri=creds.get(
-                    "redirect_uri", "http://localhost:8000/callback"
-                ),
+                redirect_uri=creds.get("redirect_uri", "http://localhost:8000/callback"),
             )
             self.withings_source = WithingsSource(self.withings_auth)
         except Exception as e:
@@ -62,7 +59,12 @@ class Api:
             existing_token = self.withings_auth.token_storage.load_token()
             if existing_token:
                 self.withings_auth._token = existing_token
-                logger.info("Successfully loaded existing authentication token")
+                # Test if the token is still valid by making a simple API call
+                if self.withings_auth.is_authenticated():
+                    logger.info("Successfully loaded and validated existing authentication token")
+                else:
+                    logger.info("Loaded token is no longer valid")
+                    self.withings_auth._token = None
         except Exception as e:
             logger.debug(f"No existing token found or failed to load: {e}")
 
@@ -72,15 +74,16 @@ class Api:
         Returns:
             Dict with authentication status
         """
-        if not self.withings_auth or not self.withings_auth._token:
-            return {"authenticated": False}
+        if not self.withings_auth:
+            return {"success": True, "authenticated": False}
 
         try:
-            # Check if token is still valid
-            token = self.withings_auth.get_token()
-            return {"authenticated": bool(token)}
-        except Exception:
-            return {"authenticated": False}
+            # Check if we have a token and if it's still valid
+            is_auth = self.withings_auth.is_authenticated()
+            return {"success": True, "authenticated": is_auth}
+        except Exception as e:
+            logger.error(f"Error checking authentication status: {e}")
+            return {"success": False, "authenticated": False, "message": str(e)}
 
     def authenticate(self) -> Dict[str, Any]:
         """Authenticate with Withings API.
@@ -107,43 +110,267 @@ class Api:
             return {"success": False, "message": str(e)}
 
     def import_data(self) -> Dict[str, Any]:
-        """Import data from Withings API.
+        """Import body composition data from Withings API, transform to unified format.
 
         Returns:
             Dict with success status, message, and optional data
         """
-        if not self.withings_source:
-            return {"success": False, "message": "Not authenticated with Withings"}
+        try:
+            if not self.withings_auth:
+                return {"success": False, "message": "Withings auth not initialized"}
+
+            # Check authentication
+            if not self.withings_auth.is_authenticated():
+                return {
+                    "success": False,
+                    "message": "Not authenticated. Please authenticate first.",
+                }
+
+            # Import from Withings API
+            import_result = self._import_from_withings_api()
+            if not import_result["success"]:
+                return import_result
+
+            # Transform to unified format
+            unified_result = self._apply_unified_transformation(import_result)
+
+            return unified_result
+
+        except Exception as e:
+            return self._handle_import_error(e)
+
+    def _import_from_withings_api(self) -> Dict[str, Any]:
+        """Import data from Withings API and save to CSV."""
+        if not self.withings_auth:
+            raise ValueError("Withings auth not initialized")
+
+        source = WithingsSource(self.withings_auth)
+        withings_csv = config.DATA_DIR / "raw_data_withings_api.csv"
+
+        # Determine import strategy
+        start_date, import_message = self._determine_import_strategy(withings_csv)
+
+        # Import data from Withings API
+        logger.info(import_message)
+        count = source.import_incremental_data_to_csv(withings_csv, start_date)
+
+        # Generate result message
+        if count == 0 and withings_csv.exists():
+            message = "No new data to import since last sync."
+        else:
+            message = f"Successfully imported {count} new measurements."
+
+        return {
+            "success": True,
+            "message": message,
+            "file_path": str(withings_csv),
+            "count": count,
+        }
+
+    def _determine_import_strategy(self, withings_csv: Path) -> Tuple[datetime, str]:
+        """Determine start date and message for import strategy."""
+        start_date = datetime(2015, 1, 1)  # Default start date
+        import_message = "Importing all historical data..."
+
+        if withings_csv.exists():
+            try:
+                last_date = self._get_last_date_from_csv(withings_csv)
+                if last_date:
+                    start_date = last_date + timedelta(days=1)
+                    import_message = f"Importing new data since {last_date.strftime('%Y-%m-%d')}..."
+            except Exception as e:
+                logger.warning(f"Could not read last date from CSV, importing all data: {e}")
+
+        return start_date, import_message
+
+    def _apply_unified_transformation(self, import_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply unified format transformation."""
+        withings_csv = Path(import_result["file_path"])
+        app_csv = config.DATA_DIR / "raw_data_this_app.csv"
+
+        unified_count = self._transform_to_unified_format(withings_csv, app_csv)
+
+        result = import_result.copy()
+        if unified_count > 0:
+            result["message"] += f" Unified data file updated with {unified_count} total entries."
+
+        result["unified_file"] = str(app_csv)
+        result["total_unified"] = unified_count
+        return result
+
+    def _handle_import_error(self, error: Exception) -> Dict[str, Any]:
+        """Handle and format import errors for user display."""
+        error_msg = str(error)
+        logger.error(f"Error importing data: {error_msg}")
+
+        # Provide user-friendly error messages
+        if "NameResolutionError" in error_msg or "Failed to resolve" in error_msg:
+            user_message = "Network connection failed. Please check your internet connection and try again."
+        elif "HTTPSConnectionPool" in error_msg or "Max retries exceeded" in error_msg:
+            user_message = "Cannot connect to Withings servers. Please check your internet connection and try again."
+        elif "access_token" in error_msg.lower() or "unauthorized" in error_msg.lower():
+            user_message = "Authentication expired. Please authenticate again."
+        elif "timeout" in error_msg.lower():
+            user_message = "Request timed out. Please try again."
+        else:
+            user_message = f"Import failed: {error_msg}"
+
+        return {"success": False, "message": user_message}
+
+    def _get_last_date_from_csv(self, csv_file: Path) -> Optional[datetime]:
+        """Get the most recent date from a CSV file.
+
+        Args:
+            csv_file: Path to the CSV file
+
+        Returns:
+            The most recent datetime from the file, or None if file is empty/invalid
+        """
+        try:
+            with open(csv_file, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+            if len(lines) <= 1:  # Only header or empty
+                return None
+
+            # Get the first data line (newest due to reverse chronological order)
+            first_data_line = lines[1].strip()
+            if not first_data_line:
+                return None
+
+            # Extract date (first column)
+            date_str = first_data_line.split(",")[0]
+            return datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+
+        except Exception as e:
+            logger.error(f"Error reading last date from {csv_file}: {e}")
+            return None
+
+    def _transform_to_unified_format(self, withings_csv: Path, app_csv: Path) -> int:
+        """Transform Withings CSV data to unified app format.
+
+        Args:
+            withings_csv: Source Withings CSV file
+            app_csv: Target unified app CSV file
+
+        Returns:
+            Total number of entries in the unified file
+        """
+        if not withings_csv.exists():
+            logger.warning(f"Withings CSV file does not exist: {withings_csv}")
+            return 0
 
         try:
-            # Get data for the last 30 days
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=30)
+            withings_lines = self._read_csv_lines(withings_csv)
+            if len(withings_lines) <= 1:  # Only header or empty
+                return 0
 
-            measurements = self.withings_source.get_measurements(start_date, end_date)
+            # If app CSV doesn't exist, just copy the Withings data
+            if not app_csv.exists():
+                return self._create_new_unified_file(app_csv, withings_lines)
 
-            # Convert measurements to a list of dicts for JSON serialization
-            measurements_data = [
-                {
-                    "date": m.timestamp.isoformat(),
-                    "weight_kg": float(m.weight_kg) if m.weight_kg else None,
-                    "fat_percent": (
-                        float(m.body_fat_percent) if m.body_fat_percent else None
-                    ),
-                }
-                for m in measurements
-            ]
+            # If app CSV exists, merge data while maintaining chronological order
+            return self._merge_with_existing_unified_file(app_csv, withings_lines)
+
+        except Exception as e:
+            logger.error(f"Error transforming to unified format: {e}")
+            return 0
+
+    def _read_csv_lines(self, csv_file: Path) -> List[str]:
+        """Read all lines from a CSV file."""
+        with open(csv_file, "r", encoding="utf-8") as f:
+            return f.readlines()
+
+    def _create_new_unified_file(self, app_csv: Path, withings_lines: List[str]) -> int:
+        """Create a new unified CSV file by copying Withings data."""
+        with open(app_csv, "w", encoding="utf-8") as f:
+            f.writelines(withings_lines)
+        return len(withings_lines) - 1  # Exclude header
+
+    def _merge_with_existing_unified_file(self, app_csv: Path, withings_lines: List[str]) -> int:
+        """Merge Withings data with existing unified CSV file."""
+        app_lines = self._read_csv_lines(app_csv)
+        existing_dates, app_data = self._parse_existing_app_data(app_lines)
+
+        # Add new Withings data that doesn't already exist
+        self._add_new_withings_data(withings_lines, existing_dates, app_data)
+
+        # Write merged data to file
+        self._write_merged_data(app_csv, withings_lines[0], app_data)
+
+        return len(app_data)
+
+    def _parse_existing_app_data(self, app_lines: List[str]) -> Tuple[Set[datetime], List[Tuple[datetime, str]]]:
+        """Parse existing app data and return dates set and data list."""
+        existing_dates: Set[datetime] = set()
+        app_data: List[Tuple[datetime, str]] = []
+
+        if len(app_lines) > 1:
+            for line in app_lines[1:]:
+                if line.strip():
+                    try:
+                        date_str = line.split(",")[0]
+                        date_dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+                        existing_dates.add(date_dt)
+                        app_data.append((date_dt, line))
+                    except ValueError:
+                        continue
+
+        return existing_dates, app_data
+
+    def _add_new_withings_data(
+        self, withings_lines: List[str], existing_dates: Set[datetime], app_data: List[Tuple[datetime, str]]
+    ) -> None:
+        """Add new Withings data to app_data if it doesn't already exist."""
+        for line in withings_lines[1:]:  # Skip header
+            if line.strip():
+                try:
+                    date_str = line.split(",")[0]
+                    date_dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+                    if date_dt not in existing_dates:
+                        app_data.append((date_dt, line))
+                        existing_dates.add(date_dt)
+                except ValueError:
+                    continue
+
+    def _write_merged_data(self, app_csv: Path, header: str, app_data: List[Tuple[datetime, str]]) -> None:
+        """Write merged data to the unified CSV file."""
+        # Sort by date (newest first)
+        app_data.sort(key=lambda x: x[0], reverse=True)
+
+        with open(app_csv, "w", encoding="utf-8") as f:
+            f.write(header)  # Write header
+            for _, line in app_data:
+                f.write(line)
+
+    def has_unified_data(self) -> Dict[str, Any]:
+        """Check if unified data file exists and has data.
+
+        Returns:
+            Dict with success status and data availability info
+        """
+        try:
+            app_csv = config.DATA_DIR / "raw_data_this_app.csv"
+
+            if not app_csv.exists():
+                return {"success": True, "has_data": False, "count": 0}
+
+            with open(app_csv, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+            # Count non-empty data lines (excluding header)
+            data_count = sum(1 for line in lines[1:] if line.strip())
 
             return {
                 "success": True,
-                "message": (
-                    f"Successfully imported {len(measurements_data)} measurements"
-                ),
-                "data": measurements_data,
+                "has_data": data_count > 0,
+                "count": data_count,
+                "file_path": str(app_csv),
             }
+
         except Exception as e:
-            logger.error(f"Error importing data: {e}")
-            return {"success": False, "message": f"Failed to import data: {e}"}
+            logger.error(f"Error checking unified data: {e}")
+            return {"success": False, "message": str(e)}
 
     def clear_data(self) -> Dict[str, Any]:
         """Clear stored data and authentication tokens.
@@ -156,10 +383,29 @@ class Api:
             if self.withings_auth:
                 self.withings_auth.token_storage.clear_token()
                 self.withings_auth._token = None
-            # In a real app, you would also clear the local database or storage here
+
+            # Clear CSV data files
+            csv_files_deleted = []
+
+            # Delete Withings API CSV file
+            withings_csv = config.DATA_DIR / "raw_data_withings_api.csv"
+            if withings_csv.exists():
+                withings_csv.unlink()
+                csv_files_deleted.append("raw_data_withings_api.csv")
+
+            # Delete app's unified CSV file
+            app_csv = config.DATA_DIR / "raw_data_this_app.csv"
+            if app_csv.exists():
+                app_csv.unlink()
+                csv_files_deleted.append("raw_data_this_app.csv")
+
+            message = "Data and authentication cleared successfully"
+            if csv_files_deleted:
+                message += f". Deleted files: {', '.join(csv_files_deleted)}"
+
             return {
                 "success": True,
-                "message": "Data and authentication cleared successfully",
+                "message": message,
             }
         except Exception as e:
             logger.error(f"Error clearing data: {e}")
@@ -496,25 +742,18 @@ def main() -> None:
     except ImportError:
         print("Error: pywebview is not installed. Please install it with:")
         print("  pip install pywebview")
-        print(
-            "\nFor better experience, you can also install platform-specific backends:"
-        )
+        print("\nFor better experience, you can also install platform-specific backends:")
         system = platform.system().lower()
         if system == "windows":
             print("  pip install pywebview[winforms]  # For Windows native WebView")
             print("  # OR")
-            print(
-                "  pip install pywebview[edgechromium]"
-                "  # For Edge WebView2 (recommended)"
-            )
+            print("  pip install pywebview[edgechromium]" "  # For Edge WebView2 (recommended)")
         elif system == "darwin":
             print("  pip install pywebview[cocoa]  # For macOS native WebView")
         elif system == "linux":
             print("  pip install pywebview[gtk]  # For GTK WebView")
             print("  # OR")
-            print(
-                "  pip install pywebview[qt]  # For Qt WebView (requires PyQt5/PySide2)"
-            )
+            print("  pip install pywebview[qt]  # For Qt WebView (requires PyQt5/PySide2)")
         sys.exit(1)
 
     # Create and run the GUI

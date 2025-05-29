@@ -236,6 +236,9 @@
   .table {
     display: table;
   }
+  .transform {
+    transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);
+  }
   .border {
     border-style: var(--tw-border-style);
     border-width: 1px;
@@ -296,27 +299,21 @@ h2 {
   position: relative;
   margin-bottom: calc(var(--spacing) * 8);
   display: flex;
+  gap: calc(var(--spacing) * 2);
   overflow: hidden;
   border-radius: var(--radius-2xl);
+  padding: calc(var(--spacing) * 2);
   background: var(--gradient-surface);
   backdrop-filter: blur(10px);
   border: 1px solid rgb(148 163 184 / 0.1);
   box-shadow: 0 8px 32px rgb(0 0 0 / 0.3);
 }
-.tab::before {
-  content: '';
-  position: absolute;
-  inset: calc(var(--spacing) * 0);
-  border-radius: var(--radius-2xl);
-  background: linear-gradient(45deg, transparent, rgb(148 163 184 / 0.1), transparent );
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  padding: 1px;
-}
 .tab button {
   position: relative;
   flex: 1;
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);
   cursor: pointer;
+  border-radius: var(--radius-xl);
   --tw-border-style: none;
   border-style: none;
   background-color: transparent;
@@ -336,6 +333,14 @@ h2 {
   transition-timing-function: var(--ease-out);
   --tw-outline-style: none;
   outline-style: none;
+  &:hover {
+    @media (hover: hover) {
+      --tw-scale-x: 105%;
+      --tw-scale-y: 105%;
+      --tw-scale-z: 105%;
+      scale: var(--tw-scale-x) var(--tw-scale-y);
+    }
+  }
   &:hover {
     @media (hover: hover) {
       background-color: color-mix(in srgb, oklch(27.9% 0.041 260.031) 50%, transparent);
@@ -365,32 +370,25 @@ h2 {
   position: relative;
   overflow: hidden;
 }
-.tab button::before {
-  content: '';
-  position: absolute;
-  inset: calc(var(--spacing) * 0);
-  opacity: 0%;
-  transition-property: opacity;
-  transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
-  transition-duration: var(--tw-duration, var(--default-transition-duration));
-  --tw-duration: 300ms;
-  transition-duration: 300ms;
-  background: var(--gradient-primary);
-}
-.tab button:hover::before {
-  opacity: 10%;
-}
 .tab button.active {
   --tw-font-weight: var(--font-weight-semibold);
   font-weight: var(--font-weight-semibold);
   color: var(--color-white);
   background: var(--gradient-primary);
   box-shadow: var(--shadow-glow);
-  opacity: 1 !important;
-  color: white !important;
 }
-.tab button.active::before {
-  opacity: 100%;
+.tab button.disabled {
+  cursor: not-allowed;
+  opacity: 50%;
+}
+.tab button.disabled:hover {
+  --tw-scale-x: 100%;
+  --tw-scale-y: 100%;
+  --tw-scale-z: 100%;
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+  transform: none;
+  background-color: transparent;
+  color: var(--color-slate-300);
 }
 .tabcontent {
   margin-top: calc(var(--spacing) * 6);
@@ -495,13 +493,14 @@ button.danger {
   box-shadow: 0 4px 20px rgb(220 38 38 / 0.3);
 }
 button.authenticated {
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: linear-gradient(135deg, #065f46, #047857);
   cursor: not-allowed;
-  opacity: 50%;
+  color: var(--color-white);
   box-shadow: 0 4px 20px rgb(16 185 129 / 0.3);
+  opacity: 1;
 }
 button.authenticated:hover {
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: linear-gradient(135deg, #065f46, #047857);
   --tw-scale-x: 100%;
   --tw-scale-y: 100%;
   --tw-scale-z: 100%;
@@ -710,6 +709,26 @@ label {
     line-height: var(--tw-leading, var(--text-xs--line-height));
   }
 }
+@property --tw-rotate-x {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-rotate-y {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-rotate-z {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-skew-x {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-skew-y {
+  syntax: "*";
+  inherits: false;
+}
 @property --tw-border-style {
   syntax: "*";
   inherits: false;
@@ -779,26 +798,6 @@ label {
   inherits: false;
 }
 @property --tw-ease {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-rotate-x {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-rotate-y {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-rotate-z {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-skew-x {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-skew-y {
   syntax: "*";
   inherits: false;
 }
@@ -921,6 +920,11 @@ label {
 @layer properties {
   @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
     *, ::before, ::after, ::backdrop {
+      --tw-rotate-x: initial;
+      --tw-rotate-y: initial;
+      --tw-rotate-z: initial;
+      --tw-skew-x: initial;
+      --tw-skew-y: initial;
       --tw-border-style: solid;
       --tw-outline-style: solid;
       --tw-leading: initial;
@@ -937,11 +941,6 @@ label {
       --tw-tracking: initial;
       --tw-duration: initial;
       --tw-ease: initial;
-      --tw-rotate-x: initial;
-      --tw-rotate-y: initial;
-      --tw-rotate-z: initial;
-      --tw-skew-x: initial;
-      --tw-skew-y: initial;
       --tw-scale-x: 1;
       --tw-scale-y: 1;
       --tw-scale-z: 1;

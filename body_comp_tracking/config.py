@@ -38,9 +38,7 @@ def get_config_dir() -> str:
         config_dir = appdirs.user_config_dir("body_comp_tracking")
     except ImportError:
         # Fallback to a default directory if appdirs is not available
-        config_dir = os.path.join(
-            os.path.expanduser("~"), ".config", "body_comp_tracking"
-        )
+        config_dir = os.path.join(os.path.expanduser("~"), ".config", "body_comp_tracking")
 
     os.makedirs(config_dir, exist_ok=True)
     return config_dir
@@ -76,11 +74,7 @@ def load_config() -> Dict[str, Any]:
             # Ensure all default values are present
             config = DEFAULT_CONFIG.copy()
             for key, value in config_data.items():
-                if (
-                    isinstance(value, dict)
-                    and key in config
-                    and isinstance(config[key], dict)
-                ):
+                if isinstance(value, dict) and key in config and isinstance(config[key], dict):
                     config[key].update(value)
                 else:
                     config[key] = value
@@ -121,15 +115,11 @@ def get_withings_credentials() -> Dict[str, str]:
     return {
         "client_id": withings_config.get("client_id", ""),
         "client_secret": withings_config.get("client_secret", ""),
-        "redirect_uri": withings_config.get(
-            "redirect_uri", "http://localhost:8000/callback"
-        ),
+        "redirect_uri": withings_config.get("redirect_uri", "http://localhost:8000/callback"),
     }
 
 
-def set_withings_credentials(
-    client_id: str, client_secret: str, redirect_uri: str
-) -> None:
+def set_withings_credentials(client_id: str, client_secret: str, redirect_uri: str) -> None:
     """
     Save Withings API credentials to config file.
 

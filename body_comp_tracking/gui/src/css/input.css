@@ -61,24 +61,11 @@ h2 {
 
 /* Modern tab system with glassmorphism */
 .tab {
-  @apply relative mb-8 rounded-2xl overflow-hidden flex;
+  @apply relative mb-8 rounded-2xl overflow-hidden flex gap-2 p-2;
   background: var(--gradient-surface);
   backdrop-filter: blur(10px);
   border: 1px solid rgb(148 163 184 / 0.1);
   box-shadow: 0 8px 32px rgb(0 0 0 / 0.3);
-}
-
-.tab::before {
-  content: '';
-  @apply absolute inset-0 rounded-2xl;
-  background: linear-gradient(45deg,
-    transparent,
-    rgb(148 163 184 / 0.1),
-    transparent
-  );
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  padding: 1px;
 }
 
 /* Modern tab buttons with hover animations */
@@ -86,31 +73,24 @@ h2 {
   @apply relative bg-transparent text-slate-300 border-none outline-none cursor-pointer
          py-4 px-6 transition-all duration-300 ease-out text-base font-medium
          hover:text-white hover:bg-slate-800/50 focus:outline-2 focus:outline-primary-500
-         focus:outline-offset-2 focus:text-white flex-1;
+         focus:outline-offset-2 focus:text-white flex-1 rounded-xl
+         hover:scale-105 transform;
   position: relative;
   overflow: hidden;
-}
-
-.tab button::before {
-  content: '';
-  @apply absolute inset-0 opacity-0 transition-opacity duration-300;
-  background: var(--gradient-primary);
-}
-
-.tab button:hover::before {
-  @apply opacity-10;
 }
 
 .tab button.active {
   @apply text-white font-semibold;
   background: var(--gradient-primary);
   box-shadow: var(--shadow-glow);
-  opacity: 1 !important;
-  color: white !important;
 }
 
-.tab button.active::before {
-  @apply opacity-100;
+.tab button.disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+.tab button.disabled:hover {
+  @apply transform-none scale-100 bg-transparent text-slate-300;
 }
 
 /* Modern tab content with glassmorphism */
@@ -159,13 +139,14 @@ button.danger {
 }
 
 button.authenticated {
-  background: linear-gradient(135deg, #10b981, #059669);
-  @apply opacity-50 cursor-not-allowed;
+  background: linear-gradient(135deg, #065f46, #047857);
+  @apply text-white cursor-not-allowed;
   box-shadow: 0 4px 20px rgb(16 185 129 / 0.3);
+  opacity: 1;
 }
 
 button.authenticated:hover {
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: linear-gradient(135deg, #065f46, #047857);
   @apply transform-none scale-100;
 }
 

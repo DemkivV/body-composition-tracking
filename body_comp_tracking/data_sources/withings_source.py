@@ -3,6 +3,7 @@
 import http.server
 import json
 import logging
+import math
 import os
 import socketserver
 import time
@@ -10,13 +11,14 @@ import urllib.parse
 import webbrowser
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, cast
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union, cast
 
 import requests
 from requests_oauthlib import OAuth2Session
 
+from body_comp_tracking.models import BodyMeasurement, DataSource
+
 from .. import config
-from ..models import BodyMeasurement, DataSource
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -31,14 +33,12 @@ logger.addHandler(handler)
 class TokenStorage:
     """Handles secure storage of OAuth tokens."""
 
-    def __init__(
-        self, token_file_name: str = "authentication_token_withings_api.json"
-    ) -> None:
+    def __init__(self, token_file_name: str = "authentication_token_withings.json") -> None:
         """Initialize token storage.
 
         Args:
             token_file_name: The name of the token file (e.g.,
-              'authentication_token_withings_api.json')
+              'authentication_token_withings.json')
         """
         # Ensure the data directory from config exists
         config.DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -137,8 +137,7 @@ class CallbackHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-type", "text/html")
             self.end_headers()
             self.wfile.write(
-                b"<html><body><h1>Error: No code parameter found</h1>"
-                b"<p>Please try again.</p></body></html>"
+                b"<html><body><h1>Error: No code parameter found</h1>" b"<p>Please try again.</p></body></html>"
             )
 
     def log_message(self, format: str, *args: Any) -> None:
@@ -157,7 +156,7 @@ class WithingsAuth:
     # Start with the most basic scope for testing
     # See: https://developer.withings.com/developer-guide/v3/
     #   integration-guide/connect-oauth/authorization
-    SCOPES = ["user.info"]  # Basic scope for authentication
+    SCOPES = ["user.metrics"]  # Required scope for measurement data access
 
     def __init__(
         self,
@@ -209,8 +208,7 @@ class WithingsAuth:
         with socketserver.TCPServer(("localhost", port), handler_factory) as httpd:
             print(f"Listening on port {port}...")  # noqa: T201
             print(
-                "Please visit this URL to authorize the application"
-                " (if your browser didn't open automatically):"
+                "Please visit this URL to authorize the application" " (if your browser didn't open automatically):"
             )  # noqa: T201
             print(self.get_auth_url())  # noqa: T201
             httpd.handle_request()
@@ -237,14 +235,10 @@ class WithingsAuth:
         logger.debug(f"Redirect URI: {self.redirect_uri}")
 
         # Create OAuth2 session with debug logging
-        oauth = OAuth2Session(
-            client_id=self.client_id, redirect_uri=self.redirect_uri, scope=scope_string
-        )
+        oauth = OAuth2Session(client_id=self.client_id, redirect_uri=self.redirect_uri, scope=scope_string)
 
         # Generate the authorization URL
-        auth_url, state = oauth.authorization_url(
-            self.AUTH_URL, access_type="offline", prompt="consent"
-        )
+        auth_url, state = oauth.authorization_url(self.AUTH_URL, access_type="offline", prompt="consent")
 
         logger.debug(f"Generated auth URL: {auth_url}")
         logger.debug(f"OAuth state: {state}")
@@ -281,9 +275,7 @@ class WithingsAuth:
                 headers=headers,
                 timeout=30,  # 30 seconds timeout
             )
-            logger.debug(
-                f"Request completed in {response.elapsed.total_seconds():.2f} seconds"
-            )
+            logger.debug(f"Request completed in {response.elapsed.total_seconds():.2f} seconds")
             return response
         except requests.exceptions.RequestException as e:
             logger.error(f"Request failed: {e}")
@@ -310,9 +302,7 @@ class WithingsAuth:
 
         # Check for error in response
         if "error" in token_info:
-            error_msg = (
-                f"Withings API error: {token_info.get('error', 'Unknown error')}"
-            )
+            error_msg = f"Withings API error: {token_info.get('error', 'Unknown error')}"
             if "error_description" in token_info:
                 error_msg += f" - {token_info['error_description']}"
             logger.error(error_msg)
@@ -384,10 +374,7 @@ class WithingsAuth:
 
         # Get and display the authorization URL
         auth_url = self.get_auth_url()
-        print(
-            "Please open this URL in your browser to authorize the"
-            f" application:\n\n{auth_url}\n"
-        )
+        print("Please open this URL in your browser to authorize the" f" application:\n\n{auth_url}\n")
         webbrowser.open(auth_url)
 
         try:
@@ -440,47 +427,68 @@ class WithingsAuth:
             raise
 
     def get_token(self) -> Dict[str, Any]:
-        """Get a valid token, refreshing if necessary.
+        """Get current access token, refreshing if necessary.
 
         Returns:
-            Dict containing the token information
+            Dict containing token information
 
         Raises:
-            ValueError: If not authenticated and unable to authenticate
+            ValueError: If no token is available or refresh fails
         """
         if not self._token:
-            self._token = self.token_storage.load_token()
+            logger.debug("No token available, checking storage...")
+            stored_token = self.token_storage.load_token()
+            if stored_token:
+                logger.debug("Found stored token, attempting to use it")
+                self._token = stored_token
+            else:
+                raise ValueError("No authentication token available")
 
-        if not self._token:
-            raise ValueError(
-                "No authentication token available. Please authenticate first."
-            )
-
-        # Check if token is expired or about to expire (within 60 seconds)
-        # Note: expires_at might not be present in all token formats,
-        #   so we'll be conservative
-        expires_at = self._token.get("expires_at", float("inf"))
-        if expires_at != float("inf") and time.time() > (expires_at - 60):
+        # Check if token is expired and refresh if needed
+        if self._is_token_expired():
+            logger.debug("Token expired, attempting refresh")
             try:
-                logger.info("Token is about to expire, attempting to refresh...")
-                self.refresh_token()
+                self._token = self.refresh_token()
+                logger.debug("Token refreshed successfully")
             except Exception as e:
-                logger.warning("Token refresh failed: %s", e)
-                # Don't auto-authenticate, let the user decide
-                raise ValueError(
-                    "Token has expired and refresh failed. Please re-authenticate."
-                )
-
-        if not self._token:
-            raise ValueError("Authentication failed after refresh attempt")
+                logger.error(f"Failed to refresh token: {e}")
+                self._token = None
+                raise ValueError("Token expired and refresh failed") from e
 
         return self._token
+
+    def _is_token_expired(self) -> bool:
+        """Check if the current token is expired or about to expire.
+
+        Returns:
+            True if token is expired or will expire within 60 seconds
+        """
+        if not self._token:
+            return True
+
+        expires_at = self._token.get("expires_at", float("inf"))
+        if expires_at == float("inf"):
+            return False  # Token doesn't have expiry info, assume valid
+
+        return time.time() > (float(expires_at) - 60)  # Expired or expires within 60 seconds
+
+    def is_authenticated(self) -> bool:
+        """Check if user is currently authenticated with valid token.
+
+        Returns:
+            True if authenticated with valid token, False otherwise
+        """
+        try:
+            self.get_token()
+            return True
+        except ValueError:
+            return False
 
 
 class WithingsSource(DataSource):
     """Data source for Withings API."""
 
-    BASE_URL = "https://wbsapi.withings.com/v2/measure"
+    BASE_URL = "https://wbsapi.withings.net/measure"
 
     def __init__(self, auth: WithingsAuth) -> None:
         """Initialize the Withings data source.
@@ -502,9 +510,7 @@ class WithingsSource(DataSource):
             self._session = OAuth2Session(client_id=self.auth.client_id, token=token)
         return self._session
 
-    def _make_request(
-        self, action: str, params: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def _make_request(self, action: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Make an authenticated request to the Withings API.
 
         Args:
@@ -532,11 +538,14 @@ class WithingsSource(DataSource):
         request_params = params.copy()
         request_params["action"] = action
 
-        # Make the request
-        headers = {"Authorization": f"Bearer {access_token}"}
+        # Make the request using form data in the body
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/x-www-form-urlencoded",
+        }
         response = requests.post(
             self.BASE_URL,
-            params=request_params,
+            data=request_params,  # Send as form data, not query parameters
             headers=headers,
             timeout=30,
         )
@@ -547,9 +556,7 @@ class WithingsSource(DataSource):
         except ValueError as e:
             raise ValueError(f"Invalid JSON response: {e}") from e
 
-    def get_measurements(
-        self, start_date: datetime, end_date: datetime
-    ) -> List[BodyMeasurement]:
+    def get_measurements(self, start_date: datetime, end_date: datetime) -> List[BodyMeasurement]:
         """Get body composition measurements from Withings.
 
         Args:
@@ -572,7 +579,8 @@ class WithingsSource(DataSource):
             {
                 "startdate": start_timestamp,
                 "enddate": end_timestamp,
-                "meastypes": [1, 6, 5, 8, 11],  # Weight, fat, muscle, hydration, bone
+                # Weight, fat mass, fat free mass, bone mass, water mass
+                "meastypes": "1,8,5,88,77",
                 "category": 1,  # Real measurements only (not user-entered)
                 "lastupdate": start_timestamp,
             },
@@ -582,17 +590,397 @@ class WithingsSource(DataSource):
         measurements = []
         for measure_group in response.get("body", {}).get("measuregrps", []):
             timestamp = datetime.fromtimestamp(measure_group["date"])
-            measures = {
-                m["type"]: m["value"] * (10 ** m["unit"])
-                for m in measure_group["measures"]
-            }
+            measures = {m["type"]: m["value"] * (10 ** m["unit"]) for m in measure_group["measures"]}
 
             measurement = BodyMeasurement(
                 timestamp=timestamp,
                 weight_kg=measures.get(1),  # Weight in kg
-                body_fat_percent=measures.get(6),  # Fat ratio in %
+                body_fat_percent=measures.get(8),  # Fat mass in kg (not percentage!)
                 source="withings",
             )
             measurements.append(measurement)
 
         return measurements
+
+    @staticmethod
+    def _format_measurement_row(
+        timestamp: datetime,
+        measurement_data: Dict[str, float],
+    ) -> Dict[str, str]:
+        """Format a measurement row for CSV.
+
+        Args:
+            timestamp: The timestamp of the measurement
+            measurement_data: The measurement data
+        """
+        row = {
+            "Date": timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            "Weight (kg)": WithingsSource._get_formatted_metric(measurement_data, "weight_kg"),
+            "Fat mass (kg)": WithingsSource._get_formatted_metric(measurement_data, "fat_mass_kg"),
+            "Bone mass (kg)": WithingsSource._get_formatted_metric(measurement_data, "bone_mass_kg"),
+            "Muscle mass (kg)": WithingsSource._get_formatted_metric(measurement_data, "muscle_mass_kg"),
+            "Hydration (kg)": WithingsSource._get_formatted_metric(measurement_data, "hydration_kg"),
+            "Comments": "",
+        }
+        return row
+
+    @staticmethod
+    def _get_formatted_metric(data_dict: Dict[str, float], key_name: str) -> str:
+        """Safely retrieves metric from data_dict by key_name.
+
+        Returns:
+            Empty string if value is not present, None, an empty string, or cannot be
+            converted to float.
+        """
+        value = data_dict.get(key_name)
+
+        if value is None:
+            return ""
+
+        if math.isnan(value) or math.isinf(value):
+            # Return an empty string or another placeholder for NaN/Infinity values.
+            return ""
+
+        try:
+            return f"{float(value):.2f}"
+        except (ValueError, TypeError):
+            return ""
+
+    def import_all_data_to_csv(self, csv_file_path: Path) -> int:
+        """Import all available data from Withings and save to CSV file.
+
+        Args:
+            csv_file_path: Path where to save the CSV file
+
+        Returns:
+            Number of measurements imported
+
+        Raises:
+            requests.HTTPError: If the API request fails
+        """
+        # Get measurements from a wide date range (10 years back)
+        end_date = datetime.now()
+        start_date = datetime(2015, 1, 1)  # Withings API data typically starts around 2015
+
+        logger.info(f"Importing all data from {start_date.date()} to {end_date.date()}")
+
+        # Make the API request for all measurement types
+        response = self._make_request(
+            "getmeas",
+            {
+                "startdate": int(start_date.timestamp()),
+                "enddate": int(end_date.timestamp()),
+                # Weight, fat mass, fat free mass, bone mass, water mass
+                "meastypes": "1,8,5,88,77",
+                "category": 1,  # Real measurements only (not user-entered)
+            },
+        )
+
+        # Process measurements and group by timestamp
+        measurements_by_timestamp = self._process_api_measurements(response)
+
+        # Apply muscle mass correction
+        self._apply_muscle_mass_correction(measurements_by_timestamp)
+
+        # Write data to CSV file
+        self._write_all_data_to_csv(csv_file_path, measurements_by_timestamp)
+
+        logger.info(f"Successfully imported {len(measurements_by_timestamp)}" f" measurements to {csv_file_path}")
+        return len(measurements_by_timestamp)
+
+    def _process_api_measurements(self, response: Dict[str, Any]) -> Dict[datetime, Dict[str, float]]:
+        """Process API response and group measurements by timestamp."""
+        measurements_by_timestamp: Dict[datetime, Dict[str, float]] = {}
+
+        for measure_group in response.get("body", {}).get("measuregrps", []):
+            timestamp = datetime.fromtimestamp(measure_group["date"])
+
+            # Initialize measurement dict if not exists
+            if timestamp not in measurements_by_timestamp:
+                measurements_by_timestamp[timestamp] = {}
+
+            # Process each measurement in the group
+            for measure in measure_group["measures"]:
+                value = measure["value"] * (10 ** measure["unit"])
+                measure_type = measure["type"]
+
+                # Map measurement types according to Withings API docs
+                self._map_measurement_type(measurements_by_timestamp[timestamp], measure_type, value)
+
+        return measurements_by_timestamp
+
+    def _map_measurement_type(self, data: Dict[str, float], measure_type: int, value: float) -> None:
+        """Map Withings measurement type to our data structure."""
+        # Updated mapping based on official API documentation
+        if measure_type == 1:  # Weight in kg
+            data["weight_kg"] = value
+        elif measure_type == 8:  # Fat mass in kg
+            data["fat_mass_kg"] = value
+        elif measure_type == 88:  # Bone mass in kg
+            data["bone_mass_kg"] = value
+        elif measure_type == 5:  # Fat free mass (muscle mass) in kg
+            data["muscle_mass_kg"] = value
+        elif measure_type == 77:  # Water mass (hydration) in kg
+            data["hydration_kg"] = value
+
+    def _apply_muscle_mass_correction(self, measurements: Dict[datetime, Dict[str, float]]) -> None:
+        """Apply muscle mass correction by subtracting bone mass from fat-free mass."""
+        for measurement_data in measurements.values():
+            # Calculate correct muscle mass by subtracting bone mass from fat-free mass
+            fat_free_mass = measurement_data.get("muscle_mass_kg", 0)  # This is actually fat-free mass
+            bone_mass_val = measurement_data.get("bone_mass_kg", 0)
+
+            # Only calculate muscle mass if we have fat-free mass data
+            if fat_free_mass > 0:
+                actual_muscle_mass = fat_free_mass - bone_mass_val if bone_mass_val > 0 else fat_free_mass
+                measurement_data["muscle_mass_kg"] = actual_muscle_mass
+            else:
+                # No fat-free mass data available
+                measurement_data.pop("muscle_mass_kg", None)
+
+    def _write_all_data_to_csv(self, csv_file_path: Path, measurements: Dict[datetime, Dict[str, float]]) -> None:
+        """Write all measurements to CSV file."""
+        # Ensure the directory exists
+        csv_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write to CSV file
+        with open(csv_file_path, "w", newline="", encoding="utf-8") as csvfile:
+            # Write header manually to match exact Withings format
+            csvfile.write(
+                'Date,"Weight (kg)","Fat mass (kg)","Bone mass (kg)","Muscle mass (kg)","Hydration (kg)",Comments\n'
+            )
+
+            # Sort by timestamp in reverse chronological order (newest first)
+            for timestamp in sorted(measurements.keys(), reverse=True):
+                measurement_data = measurements[timestamp]
+
+                # Format date with quotes
+                date_str = f'"{timestamp.strftime("%Y-%m-%d %H:%M:%S")}"'
+
+                # Format each measurement value
+                weight = WithingsSource._get_formatted_metric(measurement_data, "weight_kg")
+                fat_mass = WithingsSource._get_formatted_metric(measurement_data, "fat_mass_kg")
+                bone_mass = WithingsSource._get_formatted_metric(measurement_data, "bone_mass_kg")
+                muscle_mass = WithingsSource._get_formatted_metric(measurement_data, "muscle_mass_kg")
+                hydration = WithingsSource._get_formatted_metric(measurement_data, "hydration_kg")
+
+                # Write row in correct format
+                csvfile.write(f"{date_str},{weight},{fat_mass},{bone_mass},{muscle_mass},{hydration},\n")
+
+    def import_incremental_data_to_csv(self, csv_file_path: Path, start_date: datetime) -> int:
+        """Import data from API starting from specific date and update CSV file.
+
+        Args:
+            csv_file_path: Path where to save the CSV file
+            start_date: Start date for importing new data
+
+        Returns:
+            Number of new measurements imported
+
+        Raises:
+            requests.HTTPError: If the API request fails
+        """
+        end_date = datetime.now()
+
+        logger.info(f"Importing incremental data from {start_date.date()} " f"to {end_date.date()}")
+
+        # Get new measurements from API
+        new_measurements = self._fetch_measurements_from_api(start_date, end_date)
+
+        if not new_measurements:
+            logger.info("No new measurements found")
+            return 0
+
+        # Load existing data and merge with new data
+        all_measurements = self._merge_with_existing_data(csv_file_path, new_measurements)
+
+        # Write updated data to CSV
+        self._write_measurements_to_csv(csv_file_path, all_measurements)
+
+        new_count = len(new_measurements)
+        logger.info(
+            f"Successfully imported {new_count} new measurements "
+            f"(total: {len(all_measurements)}) to {csv_file_path}"
+        )
+        return new_count
+
+    def _fetch_measurements_from_api(
+        self, start_date: datetime, end_date: datetime
+    ) -> Dict[datetime, Dict[str, float]]:
+        """Fetch measurements from Withings API."""
+        response = self._make_request(
+            "getmeas",
+            {
+                "startdate": int(start_date.timestamp()),
+                "enddate": int(end_date.timestamp()),
+                "meastypes": "1,8,5,88,77",  # Weight, fat mass, fat free mass, bone mass, water mass
+                "category": 1,  # Real measurements only
+            },
+        )
+
+        # Process measurements using the same logic as import_all_data_to_csv
+        measurements = self._process_api_measurements_for_incremental(response)
+
+        # Apply muscle mass correction
+        self._apply_muscle_mass_correction_for_incremental(measurements)
+
+        return measurements
+
+    def _process_api_measurements_for_incremental(self, response: Dict[str, Any]) -> Dict[datetime, Dict[str, float]]:
+        """Process API response for incremental import (uses fat_free_mass_kg key initially)."""
+        measurements: Dict[datetime, Dict[str, float]] = {}
+
+        for measure_group in response.get("body", {}).get("measuregrps", []):
+            timestamp = datetime.fromtimestamp(measure_group["date"])
+            if timestamp not in measurements:
+                measurements[timestamp] = {}
+
+            for measure in measure_group["measures"]:
+                value = measure["value"] * (10 ** measure["unit"])
+                measure_type = measure["type"]
+
+                # Map measurement types to CSV columns (use fat_free_mass_kg for type 5)
+                self._map_measurement_type_for_incremental(measurements[timestamp], measure_type, value)
+
+        return measurements
+
+    def _map_measurement_type_for_incremental(self, data: Dict[str, float], measure_type: int, value: float) -> None:
+        """Map measurement types for incremental import (keeps fat_free_mass separate initially)."""
+        if measure_type == 1:  # Weight in kg
+            data["weight_kg"] = value
+        elif measure_type == 8:  # Fat mass in kg
+            data["fat_mass_kg"] = value
+        elif measure_type == 88:  # Bone mass in kg
+            data["bone_mass_kg"] = value
+        elif measure_type == 5:  # Fat free mass (will be corrected to muscle mass)
+            data["fat_free_mass_kg"] = value
+        elif measure_type == 77:  # Water mass (hydration) in kg
+            data["hydration_kg"] = value
+
+    def _apply_muscle_mass_correction_for_incremental(self, measurements: Dict[datetime, Dict[str, float]]) -> None:
+        """Apply muscle mass correction for incremental import."""
+        # Calculate correct muscle mass by subtracting bone mass from fat-free mass
+        for timestamp, data in measurements.items():
+            fat_free_mass = data.get("fat_free_mass_kg", 0)
+            bone_mass_val = data.get("bone_mass_kg", 0)
+
+            # Only calculate muscle mass if we have fat-free mass data
+            if fat_free_mass > 0:
+                actual_muscle_mass = fat_free_mass - bone_mass_val if bone_mass_val > 0 else fat_free_mass
+                data["muscle_mass_kg"] = actual_muscle_mass
+            else:
+                # No fat-free mass data available - don't add muscle_mass_kg key
+                pass
+
+            # Remove the fat_free_mass_kg as we don't need it in the final output
+            data.pop("fat_free_mass_kg", None)
+
+    def _merge_with_existing_data(
+        self, csv_file_path: Path, new_measurements: Dict[datetime, Dict[str, float]]
+    ) -> Dict[datetime, Dict[str, Union[float, None]]]:
+        """Merge new measurements with existing CSV data."""
+        existing_timestamps: Set[datetime] = set()
+        all_measurements: Dict[datetime, Dict[str, Union[float, None]]] = {}
+
+        # Load existing data if file exists
+        if csv_file_path.exists():
+            existing_timestamps, existing_data = self._load_existing_csv_data(csv_file_path)
+            all_measurements.update(existing_data)
+
+        # Add new measurements that don't already exist
+        for timestamp, data in new_measurements.items():
+            if timestamp not in existing_timestamps:
+                # Convert to Union[float, None] format
+                measurement_data: Dict[str, Union[float, None]] = {key: value for key, value in data.items()}
+                all_measurements[timestamp] = measurement_data
+
+        return all_measurements
+
+    def _load_existing_csv_data(
+        self, csv_file_path: Path
+    ) -> Tuple[Set[datetime], Dict[datetime, Dict[str, Union[float, None]]]]:
+        """Load existing CSV data and return timestamps and measurements."""
+        existing_timestamps: Set[datetime] = set()
+        existing_data: Dict[datetime, Dict[str, Union[float, None]]] = {}
+
+        try:
+            with open(csv_file_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+            if len(lines) <= 1:  # Only header or empty
+                return existing_timestamps, existing_data
+
+            for line in lines[1:]:
+                if line.strip():
+                    try:
+                        date_str = line.split(",")[0]
+                        # Remove quotes if present
+                        date_str = date_str.strip('"')
+                        timestamp = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+                        existing_timestamps.add(timestamp)
+
+                        # Parse measurement values
+                        parts = line.strip().split(",")
+                        if len(parts) >= 6:
+                            existing_data[timestamp] = {
+                                "weight_kg": float(parts[1]) if parts[1] else None,
+                                "fat_mass_kg": (float(parts[2]) if parts[2] else None),
+                                "bone_mass_kg": (float(parts[3]) if parts[3] else None),
+                                "muscle_mass_kg": (float(parts[4]) if parts[4] else None),
+                                "hydration_kg": (float(parts[5]) if parts[5] else None),
+                            }
+                    except (ValueError, IndexError):
+                        continue
+
+        except Exception as e:
+            logger.warning(f"Could not read existing CSV file: {e}")
+
+        return existing_timestamps, existing_data
+
+    def _write_measurements_to_csv(
+        self,
+        csv_file_path: Path,
+        measurements: Dict[datetime, Dict[str, Union[float, None]]],
+    ) -> None:
+        """Write measurements to CSV file."""
+        # Ensure the directory exists
+        csv_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(csv_file_path, "w", newline="", encoding="utf-8") as csvfile:
+            # Write header manually to match exact Withings format
+            csvfile.write(
+                'Date,"Weight (kg)","Fat mass (kg)","Bone mass (kg)",' '"Muscle mass (kg)","Hydration (kg)",Comments\n'
+            )
+
+            # Sort by timestamp in reverse chronological order (newest first)
+            for timestamp in sorted(measurements.keys(), reverse=True):
+                measurement_data = measurements[timestamp]
+
+                # Format date with quotes
+                date_str = f'"{timestamp.strftime("%Y-%m-%d %H:%M:%S")}"'
+
+                # Format each measurement value (handle Union[float, None])
+                weight = self._format_optional_metric(measurement_data, "weight_kg")
+                fat_mass = self._format_optional_metric(measurement_data, "fat_mass_kg")
+                bone_mass = self._format_optional_metric(measurement_data, "bone_mass_kg")
+                muscle_mass = self._format_optional_metric(measurement_data, "muscle_mass_kg")
+                hydration = self._format_optional_metric(measurement_data, "hydration_kg")
+
+                # Write row in correct format
+                csvfile.write(f"{date_str},{weight},{fat_mass},{bone_mass}," f"{muscle_mass},{hydration},\n")
+
+    @staticmethod
+    def _format_optional_metric(data_dict: Dict[str, Union[float, None]], key_name: str) -> str:
+        """Format metric value that can be None."""
+        value = data_dict.get(key_name)
+
+        if value is None:
+            return ""
+
+        if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
+            return ""
+
+        try:
+            return f"{float(value):.2f}"
+        except (ValueError, TypeError):
+            return ""
