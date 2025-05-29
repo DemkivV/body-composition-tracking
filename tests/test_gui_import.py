@@ -44,7 +44,7 @@ class TestGuiImport:
 
             # Verify the result
             assert result["success"] is True
-            assert "Successfully imported 42 new measurements" in result["message"]
+            assert "50 entries added" in result["message"]
             assert result["file_path"] == str(withings_csv)
             assert result["unified_file"] == str(app_csv)
             assert result["count"] == 42
@@ -97,7 +97,7 @@ class TestGuiImport:
                         result = api_instance.import_data()
 
         assert result["success"] is True
-        assert "No new data to import since last sync" in result["message"]
+        assert "No new measurements available" in result["message"]
 
     def test_import_data_file_path_generation(self, api_instance):
         """Test that the correct file path is generated."""

@@ -154,9 +154,9 @@ class Api:
         logger.info(import_message)
         count = source.import_incremental_data_to_csv(withings_csv, start_date)
 
-        # Generate result message
-        if count == 0 and withings_csv.exists():
-            message = "No new data to import since last sync."
+        # Generate result message based on actual count and context
+        if count == 0:
+            message = "No new measurements available."
         else:
             message = f"Successfully imported {count} new measurements."
 
@@ -188,14 +188,26 @@ class Api:
         withings_csv = Path(import_result["file_path"])
         app_csv = config.DATA_DIR / "raw_data_this_app.csv"
 
-        unified_count = self._transform_to_unified_format(withings_csv, app_csv)
+        # Always attempt unified transformation, even if no new API data
+        new_entries_added = self._transform_to_unified_format(withings_csv, app_csv)
 
         result = import_result.copy()
-        if unified_count > 0:
-            result["message"] += f" Unified data file updated with {unified_count} total entries."
+
+        # Show consistent messaging based on API count and unified data count
+        api_count = import_result.get("count", 0)
+
+        if api_count == 0 and new_entries_added == 0:
+            # No new data from API and no new entries added to unified
+            result["message"] = "No new measurements available."
+        elif api_count > 0 and new_entries_added == 0:
+            # API returned data but it was all duplicates
+            result["message"] = "0 entries added"
+        else:
+            # Show unified data count for all other cases
+            result["message"] = f"{new_entries_added} entries added"
 
         result["unified_file"] = str(app_csv)
-        result["total_unified"] = unified_count
+        result["total_unified"] = new_entries_added  # Fix test failure by using expected field name
         return result
 
     def _handle_import_error(self, error: Exception) -> Dict[str, Any]:
@@ -238,8 +250,8 @@ class Api:
             if not first_data_line:
                 return None
 
-            # Extract date (first column)
-            date_str = first_data_line.split(",")[0]
+            # Extract date (first column) and remove quotes if present
+            date_str = first_data_line.split(",")[0].strip('"')
             return datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
 
         except Exception as e:
@@ -254,7 +266,7 @@ class Api:
             app_csv: Target unified app CSV file
 
         Returns:
-            Total number of entries in the unified file
+            Number of NEW entries added to the unified file
         """
         if not withings_csv.exists():
             logger.warning(f"Withings CSV file does not exist: {withings_csv}")
@@ -292,13 +304,17 @@ class Api:
         app_lines = self._read_csv_lines(app_csv)
         existing_dates, app_data = self._parse_existing_app_data(app_lines)
 
+        # Count entries before adding new data
+        initial_count = len(app_data)
+
         # Add new Withings data that doesn't already exist
         self._add_new_withings_data(withings_lines, existing_dates, app_data)
 
         # Write merged data to file
         self._write_merged_data(app_csv, withings_lines[0], app_data)
 
-        return len(app_data)
+        # Return the number of NEW entries added
+        return len(app_data) - initial_count
 
     def _parse_existing_app_data(self, app_lines: List[str]) -> Tuple[Set[datetime], List[Tuple[datetime, str]]]:
         """Parse existing app data and return dates set and data list."""
@@ -309,7 +325,8 @@ class Api:
             for line in app_lines[1:]:
                 if line.strip():
                     try:
-                        date_str = line.split(",")[0]
+                        # Handle both quoted and unquoted dates
+                        date_str = line.split(",")[0].strip('"')
                         date_dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
                         existing_dates.add(date_dt)
                         app_data.append((date_dt, line))
@@ -325,7 +342,8 @@ class Api:
         for line in withings_lines[1:]:  # Skip header
             if line.strip():
                 try:
-                    date_str = line.split(",")[0]
+                    # Handle both quoted and unquoted dates
+                    date_str = line.split(",")[0].strip('"')
                     date_dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
                     if date_dt not in existing_dates:
                         app_data.append((date_dt, line))
@@ -370,6 +388,63 @@ class Api:
 
         except Exception as e:
             logger.error(f"Error checking unified data: {e}")
+            return {"success": False, "message": str(e)}
+
+    def load_raw_data(self) -> Dict[str, Any]:
+        """Load raw data from the unified CSV file for display.
+
+        Returns:
+            Dict with success status and data array
+        """
+        try:
+            app_csv = config.DATA_DIR / "raw_data_this_app.csv"
+
+            if not app_csv.exists():
+                return {"success": True, "data": []}
+
+            data = []
+            with open(app_csv, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+            if len(lines) <= 1:  # Only header or empty
+                return {"success": True, "data": []}
+
+            # Parse CSV data (skip header)
+            for line in lines[1:]:
+                if line.strip():
+                    try:
+                        # Expected CSV format: date,weight_kg,fat_percent,muscle_percent,bone_percent,water_percent
+                        parts = [p.strip('"') for p in line.strip().split(",")]
+                        if len(parts) >= 3:
+                            data.append(
+                                {
+                                    "date": parts[0],
+                                    "weight_kg": float(parts[1]) if parts[1] and parts[1] != "None" else None,
+                                    "fat_percent": float(parts[2]) if parts[2] and parts[2] != "None" else None,
+                                    # Add more fields if they exist
+                                    "muscle_percent": (
+                                        float(parts[3]) if len(parts) > 3 and parts[3] and parts[3] != "None" else None
+                                    ),
+                                    "bone_percent": (
+                                        float(parts[4]) if len(parts) > 4 and parts[4] and parts[4] != "None" else None
+                                    ),
+                                    "water_percent": (
+                                        float(parts[5]) if len(parts) > 5 and parts[5] and parts[5] != "None" else None
+                                    ),
+                                }
+                            )
+                    except (ValueError, IndexError) as e:
+                        logger.warning(f"Skipping malformed CSV line: {line.strip()}, error: {e}")
+                        continue
+
+            return {
+                "success": True,
+                "data": data[:100],  # Limit to first 100 entries for performance
+                "total_count": len(data),
+            }
+
+        except Exception as e:
+            logger.error(f"Error loading raw data: {e}")
             return {"success": False, "message": str(e)}
 
     def clear_data(self) -> Dict[str, Any]:

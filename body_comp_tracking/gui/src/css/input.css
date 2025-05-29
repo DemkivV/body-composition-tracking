@@ -266,3 +266,44 @@ label {
     @apply py-2 px-4 text-xs;
   }
 }
+
+/* Feature preview content styling */
+.feature-preview {
+  @apply p-6 rounded-xl border border-slate-600/30 bg-slate-800/20 backdrop-blur-sm;
+  background-image: linear-gradient(135deg, rgb(15 23 42 / 0.6), rgb(30 41 59 / 0.4));
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.2);
+}
+
+.feature-preview h3 {
+  @apply text-xl font-semibold text-slate-200 mb-4 tracking-tight;
+  background: linear-gradient(135deg, var(--color-primary-400), var(--color-accent-400));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.feature-preview ul {
+  @apply list-none space-y-3 mb-6;
+}
+
+.feature-preview li {
+  @apply text-slate-300 text-base flex items-start gap-3;
+  transition: color 0.3s ease;
+}
+
+.feature-preview li:hover {
+  @apply text-slate-200;
+}
+
+.feature-preview p {
+  @apply text-slate-400 text-base leading-relaxed;
+}
+
+.feature-preview strong {
+  @apply text-slate-200 font-semibold;
+}
+
+/* Data info styling */
+.data-info {
+  @apply text-sm text-slate-400 mt-4 text-center italic;
+}
