@@ -48,6 +48,7 @@
     *   Important note: You don't need to explicitely run `npm run build:css` or `npm run dev`, because during active development, `npm run dev` is already active, and both, TailwindCSS and pywebview are watching for changes and will automatically pick them up.
     * Once you're done with your tasks, I want you to activate the local Python virtual environment (if necessary), and run `pytest; pre-commit run --all-files` to run the tests and quality assurance. Fix issues, if they come up, and run it again, until all issues are resolved.
     * Please be resourceful with your tool use and combine multiple planned commands in a single tool use request (e.g. `pytest; pre-commit run --all-files` instead of running both parts separate), and then process the results of the tool use step by step.
+    *   Note that you might need to activate the virtual environment of Python before you can use it. For this, run `.venv\Scripts\activate.bat`. Combining this with the previous instruction to bundle commands, I recommend running `.venv\Scripts\activate.bat; pytest; pre-commit run --all-files`, then fixing possible issues, and run it again, whenever you finish a task and want to wrap up your work.
 2.  **Error Resolution:**
     *   Prioritize fixing structural errors or file corruption (e.g., indentation issues from faulty edits) before other logical errors.
     *   Address Mypy errors related to type stubs by ensuring stubs are listed in *both* `pyproject.toml`
