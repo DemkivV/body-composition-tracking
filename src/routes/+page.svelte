@@ -3,6 +3,7 @@
 	import TabNavigation from '$lib/components/TabNavigation.svelte';
 	import AuthSection from '$lib/components/AuthSection.svelte';
 	import ConfigSection from '$lib/components/ConfigSection.svelte';
+	import { authStore } from '$lib/stores/auth.js';
 
 	let activeTab = 'data-import';
 	let isConfigured = false;

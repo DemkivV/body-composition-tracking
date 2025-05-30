@@ -28,6 +28,7 @@
 <nav class="tab-nav">
 	{#each tabs as tab}
 		<button
+			data-tab={tab.id}
 			class:active={activeTab === tab.id}
 			class:disabled={tab.disabled}
 			disabled={tab.disabled}

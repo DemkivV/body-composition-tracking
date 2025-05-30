@@ -211,8 +211,8 @@ h1.gradient-heading {
   color: #e2e8f0;
 }
 
-/* Status messages */
-.status {
+/* Feedback messages */
+.feedback {
   margin: 1rem 0;
   border-radius: 0.75rem;
   border: 1px solid;
@@ -223,7 +223,7 @@ h1.gradient-heading {
   transition: all 300ms;
 }
 
-.status.authenticated {
+.feedback.authenticated {
   border-color: rgb(16 185 129 / 0.3);
   background-color: rgb(6 78 59 / 0.3);
   color: #6ee7b7; /* emerald-300 */
@@ -231,7 +231,7 @@ h1.gradient-heading {
   box-shadow: 0 4px 20px rgb(6 78 59 / 0.2);
 }
 
-.status.error {
+.feedback.error {
   border-color: rgb(239 68 68 / 0.3);
   background-color: rgb(127 29 29 / 0.3);
   color: #fca5a5; /* red-300 */
@@ -239,7 +239,7 @@ h1.gradient-heading {
   box-shadow: 0 4px 20px rgb(127 29 29 / 0.2);
 }
 
-.status.not-authenticated {
+.feedback.not-authenticated {
   border-color: rgb(245 158 11 / 0.3);
   background-color: rgb(120 53 15 / 0.3);
   color: #fcd34d; /* amber-300 */
@@ -247,12 +247,26 @@ h1.gradient-heading {
   box-shadow: 0 4px 20px rgb(120 53 15 / 0.2);
 }
 
-.status.authenticating {
+.feedback.authenticating {
   border-color: rgb(59 130 246 / 0.3);
   background-color: rgb(30 58 138 / 0.3);
   color: #93c5fd; /* blue-300 */
   background-image: linear-gradient(135deg, rgb(30 58 138 / 0.3), rgb(37 99 235 / 0.3));
   box-shadow: 0 4px 20px rgb(30 58 138 / 0.2);
+}
+
+/* Authentication instructions */
+.auth-instructions {
+  color: #cbd5e1; /* slate-300 */
+  font-size: 0.875rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background-color: rgb(30 41 59 / 0.3);
+  border: 1px solid rgb(71 85 105 / 0.3);
+}
+
+.auth-instructions p {
+  margin: 0.25rem 0;
 }
 
 /* Data source row styling */

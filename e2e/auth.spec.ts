@@ -50,6 +50,15 @@ test.describe('Authentication Flow', () => {
 			});
 		});
 
+		// Mock has existing data check - needed by AuthSection component
+		await page.route('/api/import/has-data', async route => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ hasData: false })
+			});
+		});
+
 		// Navigate to the page after setting up all mocks
 		await page.goto('/');
 
@@ -108,6 +117,15 @@ test.describe('Authentication Flow', () => {
 			});
 		});
 
+		// Mock has existing data check - needed by AuthSection component
+		await page.route('/api/import/has-data', async route => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ hasData: false })
+			});
+		});
+
 		// Setup auth endpoint
 		await page.route('/api/auth/authenticate', async route => {
 			await route.fulfill({
@@ -158,6 +176,15 @@ test.describe('Authentication Flow', () => {
 					success: true,
 					authenticated
 				})
+			});
+		});
+
+		// Mock has existing data check - needed by AuthSection component
+		await page.route('/api/import/has-data', async route => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ hasData: false })
 			});
 		});
 
@@ -223,6 +250,15 @@ test.describe('Authentication Flow', () => {
 					success: true,
 					authenticated: false
 				})
+			});
+		});
+
+		// Mock has existing data check - needed by AuthSection component
+		await page.route('/api/import/has-data', async route => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ hasData: false })
 			});
 		});
 

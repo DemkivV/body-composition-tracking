@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import AuthSection from './AuthSection.svelte';
 import { authActions } from '../stores/auth';
 import { authService } from '../services/auth';
+import * as importClient from '../services/import-client.js';
 
 // Mock the auth service
 vi.mock('../services/auth', () => ({
@@ -13,10 +14,23 @@ vi.mock('../services/auth', () => ({
 	}
 }));
 
+// Mock the import client service
+vi.mock('../services/import-client.js', () => ({
+	importClientService: {
+		intelligentImport: vi.fn(),
+		hasExistingData: vi.fn()
+	}
+}));
+
+const mockImportClientService = vi.mocked(importClient).importClientService;
+
 describe('AuthSection Component', () => {
 	beforeEach(() => {
 		authActions.reset();
 		vi.clearAllMocks();
+		
+		// Setup default mock behavior
+		mockImportClientService.hasExistingData.mockResolvedValue(false);
 	});
 
 	it('should render with initial state', async () => {
@@ -110,7 +124,7 @@ describe('AuthSection Component', () => {
 		const authenticatedButton = screen.getByRole('button', { name: '✓ Authenticated' });
 		expect(authenticatedButton).toBeDisabled();
 
-		// Import and Clear buttons should be enabled
+		// Import and Clear buttons should be enabled when authenticated
 		const importButton = screen.getByRole('button', { name: 'Import Data' });
 		const clearButton = screen.getByRole('button', { name: 'Clear Data' });
 		expect(importButton).not.toBeDisabled();
@@ -215,5 +229,63 @@ describe('AuthSection Component', () => {
 		} finally {
 			consoleSpy.mockRestore();
 		}
+	});
+
+	it('should handle import data functionality', async () => {
+		(authService.checkStatus as any).mockResolvedValueOnce({
+			success: true,
+			authenticated: false
+		});
+
+		const mockImportResult = {
+			success: true,
+			message: 'Successfully imported 5 measurements.',
+			count: 5,
+			total_unified: 10
+		};
+
+		mockImportClientService.intelligentImport.mockResolvedValue(mockImportResult);
+
+		render(AuthSection);
+
+		// Set authenticated state to enable import button
+		authActions.setAuthenticated(true);
+
+		await waitFor(() => {
+			expect(screen.getByRole('button', { name: 'Import Data' })).not.toBeDisabled();
+		});
+
+		const importButton = screen.getByRole('button', { name: 'Import Data' });
+		await fireEvent.click(importButton);
+
+		// Wait for completion and check result
+		await waitFor(() => {
+			expect(screen.getByText('Successfully imported 5 measurements.')).toBeInTheDocument();
+		});
+
+		expect(mockImportClientService.intelligentImport).toHaveBeenCalledOnce();
+	});
+
+	it('should show Update Data button when existing data is available', async () => {
+		(authService.checkStatus as any).mockResolvedValueOnce({
+			success: true,
+			authenticated: false
+		});
+
+		// Mock existing data
+		mockImportClientService.hasExistingData.mockResolvedValue(true);
+
+		render(AuthSection);
+
+		// Set authenticated state to show Update button
+		authActions.setAuthenticated(true);
+
+		await waitFor(() => {
+			expect(screen.getByRole('button', { name: 'Update Data' })).toBeInTheDocument();
+		});
+
+		// Button should not be disabled when authenticated
+		const updateButton = screen.getByRole('button', { name: 'Update Data' });
+		expect(updateButton).not.toBeDisabled();
 	});
 }); 
