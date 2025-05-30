@@ -44,7 +44,7 @@ h1.gradient-heading {
   -webkit-background-clip: text;
   color: transparent;
   text-align: center;
-  font-size: 2.25rem; /* 4xl */
+  font-size: 2.8125rem; /* 25% bigger than 2.25rem (4xl) */
   font-weight: 700;
   letter-spacing: -0.025em;
   margin-bottom: 2.5rem;
@@ -284,6 +284,33 @@ h1.gradient-heading {
   gap: 1rem;
 }
 
+/* Button group split layout for left/right alignment */
+.button-group-split {
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.button-group-left {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.button-group-right {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+/* Make data source dropdown width fit content */
+.data-source-row .form-select {
+  width: auto;
+  min-width: fit-content;
+}
+
 /* Feature preview styling */
 .feature-preview {
   background: linear-gradient(135deg, rgb(30 64 175 / 0.1), rgb(91 33 182 / 0.1));
@@ -337,7 +364,7 @@ h1.gradient-heading {
   }
   
   h1.gradient-heading {
-    font-size: 1.875rem; /* 3xl */
+    font-size: 2.25rem; /* Reduce back to 3xl equivalent on mobile for better fit */
   }
   
   .tab-nav button {
@@ -351,5 +378,16 @@ h1.gradient-heading {
   
   .button-group {
     flex-direction: column;
+  }
+  
+  .button-group-split {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .button-group-left,
+  .button-group-right {
+    flex-direction: column;
+    width: 100%;
   }
 }

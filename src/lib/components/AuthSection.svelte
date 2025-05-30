@@ -159,59 +159,65 @@
 		</label>
 		<select
 			id="data-source"
-			class="form-select flex-1"
+			class="form-select"
 		>
 			<option value="withings" selected>Withings API</option>
 		</select>
 	</div>
 
 	<div class="space-y-4">
-		<div class="button-group">
-			{#if authState.isAuthenticated}
-				<button
-					class="btn authenticated"
-					disabled={true}
-				>
-					✓ Authenticated
-				</button>
+		<div class="button-group-split">
+			<!-- Left side buttons -->
+			<div class="button-group-left">
+				{#if authState.isAuthenticated}
+					<button
+						class="btn authenticated"
+						disabled={true}
+					>
+						✓ Authenticated
+					</button>
+				{:else}
+					<button
+						class={getButtonClass()}
+						disabled={authState.isAuthenticating}
+						on:click={handleAuthenticate}
+					>
+						{getButtonText()}
+					</button>
+				{/if}
 				
 				<button
 					class="btn secondary"
-					on:click={handleLogout}
+					disabled={!authState.isAuthenticated || isImporting}
+					on:click={handleImport}
+					title="Import your body composition measurements from Withings. The system will automatically import all historical data if this is your first import, or just recent updates if you have existing data."
 				>
-					Logout
+					{#if hasExistingData}
+						Update Data
+					{:else}
+						Import Data
+					{/if}
 				</button>
-			{:else}
+			</div>
+
+			<!-- Right side buttons -->
+			<div class="button-group-right">
 				<button
-					class={getButtonClass()}
-					disabled={authState.isAuthenticating}
-					on:click={handleAuthenticate}
+					class="btn secondary"
+					disabled={!authState.isAuthenticated}
 				>
-					{getButtonText()}
+					Clear Data
 				</button>
-			{/if}
-			
-			<button
-				class="btn secondary"
-				disabled={!authState.isAuthenticated || isImporting}
-				on:click={handleImport}
-				title="Import your body composition measurements from Withings. The system will automatically import all historical data if this is your first import, or just recent updates if you have existing data."
-			>
-				{#if isImporting}
-					Importing...
-				{:else if hasExistingData}
-					Update Data
-				{:else}
-					Import Data
+				
+				{#if authState.isAuthenticated}
+					<button
+						class="btn secondary"
+						on:click={handleLogout}
+					>
+						Logout
+					</button>
 				{/if}
-			</button>
-			
-			<button
-				class="btn secondary"
-				disabled={!authState.isAuthenticated}
-			>
-				Clear Data
-			</button>
+			</div>
 		</div>
 
 		<div class={getFeedbackClass()}>
