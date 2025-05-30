@@ -37,4 +37,4 @@
 			{tab.label}
 		</button>
 	{/each}
-</nav> 
+</nav>

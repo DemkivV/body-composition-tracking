@@ -42,7 +42,7 @@ async function loadConfig(): Promise<AppConfig> {
 		await ensureDataDir();
 		const configData = await fs.readFile(CONFIG_FILE, 'utf-8');
 		const config = JSON.parse(configData);
-		
+
 		// Merge with defaults
 		return {
 			...DEFAULT_CONFIG,
@@ -72,27 +72,34 @@ async function saveConfig(config: AppConfig): Promise<void> {
 export async function getWithingsConfig(): Promise<WithingsConfig> {
 	// First try to load from config file
 	const config = await loadConfig();
-	
+
 	// Use environment variables as fallback (for development)
 	return {
 		clientId: config.withings?.clientId || env.WITHINGS_CLIENT_ID,
 		clientSecret: config.withings?.clientSecret || env.WITHINGS_CLIENT_SECRET,
-		redirectUri: config.withings?.redirectUri || env.WITHINGS_REDIRECT_URI || 'http://localhost:5173/auth/callback'
+		redirectUri:
+			config.withings?.redirectUri ||
+			env.WITHINGS_REDIRECT_URI ||
+			'http://localhost:5173/auth/callback'
 	};
 }
 
 /**
  * Set Withings API credentials
  */
-export async function setWithingsCredentials(clientId: string, clientSecret: string, redirectUri?: string): Promise<void> {
+export async function setWithingsCredentials(
+	clientId: string,
+	clientSecret: string,
+	redirectUri?: string
+): Promise<void> {
 	const config = await loadConfig();
-	
+
 	config.withings = {
 		clientId,
 		clientSecret,
 		redirectUri: redirectUri || 'http://localhost:5173/auth/callback'
 	};
-	
+
 	await saveConfig(config);
 }
 
@@ -109,4 +116,4 @@ export async function hasWithingsCredentials(): Promise<boolean> {
  */
 export function getDataDir(): string {
 	return DATA_DIR;
-} 
+}

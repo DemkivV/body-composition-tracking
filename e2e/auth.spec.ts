@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Authentication Flow', () => {
 	test.beforeEach(async ({ page }) => {
 		// Mock the configuration check to show we have credentials configured
-		await page.route('/api/auth/configure', async route => {
+		await page.route('/api/auth/configure', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -39,7 +39,7 @@ test.describe('Authentication Flow', () => {
 
 	test('should display authentication section in Data Import tab', async ({ page }) => {
 		// Mock the auth status to return not authenticated initially
-		await page.route('/api/auth/status', async route => {
+		await page.route('/api/auth/status', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -51,7 +51,7 @@ test.describe('Authentication Flow', () => {
 		});
 
 		// Mock has existing data check - needed by AuthSection component
-		await page.route('/api/import/has-data', async route => {
+		await page.route('/api/import/has-data', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -79,7 +79,11 @@ test.describe('Authentication Flow', () => {
 		await expect(page.getByRole('button', { name: 'Clear Data' })).toBeDisabled();
 
 		// Check authentication status - updated to match current text
-		await expect(page.getByText('Not authenticated yet. Click "Authenticate" to connect to your Withings account.')).toBeVisible();
+		await expect(
+			page.getByText(
+				'Not authenticated yet. Click "Authenticate" to connect to your Withings account.'
+			)
+		).toBeVisible();
 	});
 
 	test('should navigate between tabs correctly', async ({ page }) => {
@@ -92,12 +96,16 @@ test.describe('Authentication Flow', () => {
 		// Click on Raw Data tab
 		await page.getByRole('button', { name: 'Raw Data' }).click();
 		await expect(page.getByRole('heading', { name: 'Raw Data' })).toBeVisible();
-		await expect(page.getByText('View your imported body composition data in table format.')).toBeVisible();
+		await expect(
+			page.getByText('View your imported body composition data in table format.')
+		).toBeVisible();
 
 		// Click on Analysis tab
 		await page.getByRole('button', { name: 'Analysis' }).click();
 		await expect(page.getByRole('heading', { name: 'Analysis & Visualization' })).toBeVisible();
-		await expect(page.getByText('Interactive charts and trend analysis of your body composition data.')).toBeVisible();
+		await expect(
+			page.getByText('Interactive charts and trend analysis of your body composition data.')
+		).toBeVisible();
 
 		// Click back to Data Import tab
 		await page.getByRole('button', { name: 'Data Import' }).click();
@@ -106,7 +114,7 @@ test.describe('Authentication Flow', () => {
 
 	test('should show popup blocked error when window.open fails', async ({ page }) => {
 		// Setup basic status check
-		await page.route('/api/auth/status', async route => {
+		await page.route('/api/auth/status', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -118,7 +126,7 @@ test.describe('Authentication Flow', () => {
 		});
 
 		// Mock has existing data check - needed by AuthSection component
-		await page.route('/api/import/has-data', async route => {
+		await page.route('/api/import/has-data', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -127,7 +135,7 @@ test.describe('Authentication Flow', () => {
 		});
 
 		// Setup auth endpoint
-		await page.route('/api/auth/authenticate', async route => {
+		await page.route('/api/auth/authenticate', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -141,7 +149,7 @@ test.describe('Authentication Flow', () => {
 
 		// Mock window.open to simulate popup failure
 		await page.addInitScript(() => {
-			window.open = function(url, target, features) {
+			window.open = function (url, target, features) {
 				return null; // Simulate popup blocked
 			};
 		});
@@ -156,19 +164,21 @@ test.describe('Authentication Flow', () => {
 		await page.getByRole('button', { name: 'Authenticate' }).click();
 
 		// Should show popup blocked error
-		await expect(page.getByText('Failed to open authentication window. Please check if popups are blocked.')).toBeVisible({
+		await expect(
+			page.getByText('Failed to open authentication window. Please check if popups are blocked.')
+		).toBeVisible({
 			timeout: 5000
 		});
 	});
 
 	test('should handle successful authentication flow', async ({ page }) => {
 		let statusCallCount = 0;
-		
+
 		// Intercept the status check - first call returns false, then true after auth
-		await page.route('/api/auth/status', async route => {
+		await page.route('/api/auth/status', async (route) => {
 			statusCallCount++;
 			const authenticated = statusCallCount > 3; // Simulate auth success after a few checks
-			
+
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -180,7 +190,7 @@ test.describe('Authentication Flow', () => {
 		});
 
 		// Mock has existing data check - needed by AuthSection component
-		await page.route('/api/import/has-data', async route => {
+		await page.route('/api/import/has-data', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -189,7 +199,7 @@ test.describe('Authentication Flow', () => {
 		});
 
 		// Setup auth endpoint
-		await page.route('/api/auth/authenticate', async route => {
+		await page.route('/api/auth/authenticate', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -203,21 +213,23 @@ test.describe('Authentication Flow', () => {
 
 		// Mock window.open to simulate successful popup
 		await page.addInitScript(() => {
-			window.open = function(url, target, features) {
+			window.open = function (url, target, features) {
 				// Return a mock window that simulates being open then closed
 				const mockWindow = {
 					closed: false,
-					close: function() { this.closed = true; },
+					close: function () {
+						this.closed = true;
+					},
 					focus: () => {},
 					blur: () => {},
 					location: { href: url }
 				};
-				
+
 				// Simulate window closing after some time
 				setTimeout(() => {
 					mockWindow.closed = true;
 				}, 3000);
-				
+
 				return mockWindow as Window;
 			};
 		});
@@ -242,7 +254,7 @@ test.describe('Authentication Flow', () => {
 
 	test('should show error state when authentication API fails', async ({ page }) => {
 		// Intercept the auth status check to return not authenticated
-		await page.route('/api/auth/status', async route => {
+		await page.route('/api/auth/status', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -254,7 +266,7 @@ test.describe('Authentication Flow', () => {
 		});
 
 		// Mock has existing data check - needed by AuthSection component
-		await page.route('/api/import/has-data', async route => {
+		await page.route('/api/import/has-data', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -263,7 +275,7 @@ test.describe('Authentication Flow', () => {
 		});
 
 		// Intercept the auth API call to return an error
-		await page.route('/api/auth/authenticate', async route => {
+		await page.route('/api/auth/authenticate', async (route) => {
 			await route.fulfill({
 				status: 500,
 				contentType: 'application/json',
@@ -308,4 +320,4 @@ test.describe('Authentication Flow', () => {
 		await page.getByRole('button', { name: 'Raw Data' }).click();
 		await expect(page.getByRole('heading', { name: 'Raw Data' })).toBeVisible();
 	});
-}); 
+});

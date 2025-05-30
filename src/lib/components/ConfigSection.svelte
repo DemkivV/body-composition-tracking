@@ -19,7 +19,7 @@
 		try {
 			const response = await fetch('/api/auth/configure');
 			const data = await response.json();
-			
+
 			if (data.success) {
 				isConfigured = data.configured;
 			}
@@ -58,7 +58,7 @@
 				message = 'Configuration saved successfully!';
 				isError = false;
 				isConfigured = true;
-				
+
 				// Clear the form for security
 				clientId = '';
 				clientSecret = '';
@@ -81,40 +81,42 @@
 		if (isError) {
 			return 'status error';
 		}
-		
+
 		if (message) {
 			return 'status authenticated';
 		}
-		
+
 		return '';
 	}
 </script>
 
-<div class="space-y-6">
-	<div class="text-center">
-		<h2 class="text-xl font-semibold text-slate-200 mb-4">Withings API Configuration</h2>
-		
+<div class="config-section">
+	<div class="config-header">
+		<h2 class="section-title">Withings API Configuration</h2>
+
 		{#if isConfigured}
-			<div class="status authenticated mb-4">
+			<div class="status authenticated config-status">
 				✅ Withings API credentials are configured
 			</div>
-			<p class="text-slate-300 text-sm mb-4">
+			<p class="config-description">
 				Your credentials are stored securely. You can now authenticate with Withings.
 			</p>
 		{:else}
-			<p class="text-slate-300 text-sm mb-6">
-				To use this application, you need to configure your Withings API credentials.
-				Don't have them yet? <a href="https://developer.withings.com/dashboard/" target="_blank" class="text-blue-400 hover:text-blue-300 underline">Get them here</a>
+			<p class="config-instructions">
+				To use this application, you need to configure your Withings API credentials. Don't have
+				them yet? <a
+					href="https://developer.withings.com/dashboard/"
+					target="_blank"
+					class="external-link">Get them here</a
+				>
 			</p>
 		{/if}
 	</div>
 
 	{#if !isConfigured}
-		<div class="space-y-4">
+		<div class="config-form">
 			<div class="form-group">
-				<label for="client-id" class="form-label">
-					Client ID *
-				</label>
+				<label for="client-id" class="form-label"> Client ID * </label>
 				<input
 					id="client-id"
 					type="text"
@@ -126,9 +128,7 @@
 			</div>
 
 			<div class="form-group">
-				<label for="client-secret" class="form-label">
-					Client Secret *
-				</label>
+				<label for="client-secret" class="form-label"> Client Secret * </label>
 				<input
 					id="client-secret"
 					type="password"
@@ -140,9 +140,7 @@
 			</div>
 
 			<div class="form-group">
-				<label for="redirect-uri" class="form-label">
-					Redirect URI
-				</label>
+				<label for="redirect-uri" class="form-label"> Redirect URI </label>
 				<input
 					id="redirect-uri"
 					type="url"
@@ -150,17 +148,11 @@
 					bind:value={redirectUri}
 					disabled={isConfiguring}
 				/>
-				<p class="text-slate-400 text-xs mt-1">
-					This should match the redirect URI configured in your Withings app
-				</p>
+				<p class="field-hint">This should match the redirect URI configured in your Withings app</p>
 			</div>
 
 			<div class="button-group">
-				<button
-					class="btn"
-					disabled={isConfiguring}
-					on:click={handleSaveConfiguration}
-				>
+				<button class="btn" disabled={isConfiguring} on:click={handleSaveConfiguration}>
 					{isConfiguring ? 'Saving...' : 'Save Configuration'}
 				</button>
 			</div>
@@ -173,11 +165,17 @@
 		</div>
 
 		<div class="setup-instructions">
-			<h3 class="text-lg font-semibold text-slate-200 mb-3">Setup Instructions</h3>
-			<ol class="text-slate-300 text-sm space-y-2 list-decimal list-inside">
-				<li>Go to the <a href="https://developer.withings.com/dashboard/" target="_blank" class="text-blue-400 hover:text-blue-300 underline">Withings Developer Dashboard</a></li>
+			<h3 class="instructions-title">Setup Instructions</h3>
+			<ol class="instructions-list">
+				<li>
+					Go to the <a
+						href="https://developer.withings.com/dashboard/"
+						target="_blank"
+						class="external-link">Withings Developer Dashboard</a
+					>
+				</li>
 				<li>Create a new application or use an existing one</li>
-				<li>Set the redirect URI to: <code class="bg-slate-700 px-1 rounded">{redirectUri}</code></li>
+				<li>Set the redirect URI to: <code class="code-snippet">{redirectUri}</code></li>
 				<li>Copy your Client ID and Client Secret</li>
 				<li>Paste them in the form above and click "Save Configuration"</li>
 			</ol>
@@ -186,27 +184,27 @@
 </div>
 
 <style>
-	@import "tailwindcss/theme" theme(reference);
+	@import 'tailwindcss/theme' reference;
 
 	.form-group {
 		@apply space-y-2;
 	}
 
 	.form-input {
-		@apply w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-400;
-		@apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+		@apply w-full rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-slate-200 placeholder-slate-400;
+		@apply focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none;
 		@apply backdrop-blur-sm;
 	}
 
 	.form-input:disabled {
-		@apply opacity-50 cursor-not-allowed;
+		@apply cursor-not-allowed opacity-50;
 	}
 
 	.setup-instructions {
-		@apply bg-slate-800/30 rounded-lg p-4 backdrop-blur-sm border border-slate-700;
+		@apply rounded-lg border border-slate-700 bg-slate-800/30 p-4 backdrop-blur-sm;
 	}
 
 	code {
 		@apply font-mono text-xs;
 	}
-</style> 
+</style>

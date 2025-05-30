@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Initial project setup with basic structure
 - Withings API integration with OAuth 2.0 authentication
 - Command-line interface for interacting with the application
@@ -17,17 +18,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation and development tooling
 
 ### Changed
+
 - N/A
 
 ### Deprecated
+
 - N/A
 
 ### Removed
+
 - N/A
 
 ### Fixed
+
 - N/A
 
 ### Security
+
 - Secure storage of OAuth tokens
 - Secure handling of API credentials

@@ -19,7 +19,7 @@ describe('Auth Store', () => {
 	it('should set authenticated state correctly', () => {
 		authActions.setAuthenticated(true);
 		const state = get(authStore);
-		
+
 		expect(state.isAuthenticated).toBe(true);
 		expect(state.isAuthenticating).toBe(false);
 		expect(state.error).toBe(null);
@@ -28,7 +28,7 @@ describe('Auth Store', () => {
 	it('should set authenticating state correctly', () => {
 		authActions.setAuthenticating(true);
 		const state = get(authStore);
-		
+
 		expect(state.isAuthenticating).toBe(true);
 		expect(state.error).toBe(null);
 	});
@@ -37,7 +37,7 @@ describe('Auth Store', () => {
 		const errorMessage = 'Authentication failed';
 		authActions.setError(errorMessage);
 		const state = get(authStore);
-		
+
 		expect(state.error).toBe(errorMessage);
 		expect(state.isAuthenticating).toBe(false);
 	});
@@ -46,11 +46,11 @@ describe('Auth Store', () => {
 		// Modify the state first
 		authActions.setAuthenticated(true);
 		authActions.setError('Some error');
-		
+
 		// Then reset
 		authActions.reset();
 		const state = get(authStore);
-		
+
 		expect(state).toEqual({
 			isAuthenticated: false,
 			isAuthenticating: false,
@@ -62,7 +62,7 @@ describe('Auth Store', () => {
 		authActions.setError('Some error');
 		authActions.setAuthenticated(true);
 		const state = get(authStore);
-		
+
 		expect(state.error).toBe(null);
 		expect(state.isAuthenticated).toBe(true);
 	});
@@ -71,8 +71,8 @@ describe('Auth Store', () => {
 		authActions.setError('Some error');
 		authActions.setAuthenticating(true);
 		const state = get(authStore);
-		
+
 		expect(state.error).toBe(null);
 		expect(state.isAuthenticating).toBe(true);
 	});
-}); 
+});

@@ -28,7 +28,7 @@ describe('AuthSection Component', () => {
 	beforeEach(() => {
 		authActions.reset();
 		vi.clearAllMocks();
-		
+
 		// Setup default mock behavior
 		mockImportClientService.hasExistingData.mockResolvedValue(false);
 	});
@@ -288,4 +288,4 @@ describe('AuthSection Component', () => {
 		const updateButton = screen.getByRole('button', { name: 'Update Data' });
 		expect(updateButton).not.toBeDisabled();
 	});
-}); 
+});

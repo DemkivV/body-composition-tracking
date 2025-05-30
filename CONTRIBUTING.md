@@ -38,12 +38,14 @@ This project and everyone participating in it is governed by our [Code of Conduc
 ### Installation
 
 1. Fork and clone the repository
+
    ```bash
    git clone https://github.com/yourusername/body-composition-tracking.git
    cd body-composition-tracking
    ```
 
 2. Set up a virtual environment and install dependencies:
+
    ```bash
    # Using Poetry (recommended)
    poetry install

@@ -7,26 +7,26 @@ export default defineConfig({
 		reuseExistingServer: true
 	},
 	testDir: 'e2e',
-	
+
 	// Performance optimizations for 12-core machine
 	// Use 10 workers locally (leave 2 cores for OS/dev tools), auto-detect in CI
 	workers: process.env.CI ? undefined : 12, // undefined lets Playwright auto-detect CI workers
-	
+
 	// Global test settings
 	timeout: 30000, // 30 seconds per test
 	expect: {
 		timeout: 5000 // 5 seconds for assertions
 	},
-	
+
 	// Run tests in parallel within files
 	fullyParallel: true,
-	
+
 	// Retry on CI only
 	retries: process.env.CI ? 2 : 0,
-	
+
 	// Reporter configuration
 	reporter: process.env.CI ? 'github' : 'list',
-	
+
 	use: {
 		// Global test configuration
 		baseURL: 'http://localhost:4173',
@@ -38,8 +38,8 @@ export default defineConfig({
 	projects: [
 		{
 			name: 'chromium',
-			use: { ...devices['Desktop Chrome'] },
-		},
+			use: { ...devices['Desktop Chrome'] }
+		}
 		// Uncomment these if you want to test on multiple browsers
 		// {
 		// 	name: 'firefox',
@@ -49,5 +49,5 @@ export default defineConfig({
 		// 	name: 'webkit',
 		// 	use: { ...devices['Desktop Safari'] },
 		// },
-	],
+	]
 });

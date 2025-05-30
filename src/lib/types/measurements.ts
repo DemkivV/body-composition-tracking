@@ -24,4 +24,4 @@ export interface ImportResult {
 	unified_file?: string;
 	count?: number;
 	total_unified?: number;
-} 
+}

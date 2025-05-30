@@ -16,7 +16,9 @@ vi.mock('fs', () => ({
 	}
 }));
 
-const mockIsAuthenticated = withingsAuth.isAuthenticated as MockedFunction<typeof withingsAuth.isAuthenticated>;
+const mockIsAuthenticated = withingsAuth.isAuthenticated as MockedFunction<
+	typeof withingsAuth.isAuthenticated
+>;
 
 // Import fs after mocking
 const { promises: fs } = await import('fs');
@@ -30,7 +32,7 @@ describe('ImportService', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		importService = new ImportService();
-		
+
 		// Create mock for WithingsSource
 		mockWithingsSource = {
 			importIncrementalDataToCSV: vi.fn(),
@@ -38,7 +40,7 @@ describe('ImportService', () => {
 			transformToUnifiedFormat: vi.fn(),
 			getMostRecentTimestamp: vi.fn()
 		};
-		
+
 		// Mock the WithingsSource constructor
 		vi.mocked(WithingsSource).mockImplementation(() => mockWithingsSource);
 	});
@@ -47,10 +49,10 @@ describe('ImportService', () => {
 		it('should successfully import data when authenticated', async () => {
 			// Mock authentication
 			mockIsAuthenticated.mockResolvedValue(true);
-			
+
 			// Mock getMostRecentTimestamp to simulate existing data
 			mockWithingsSource.getMostRecentTimestamp.mockResolvedValue(new Date('2023-12-01T10:00:00Z'));
-			
+
 			// Mock the import methods
 			mockWithingsSource.importIncrementalDataToCSV.mockResolvedValue(42);
 			mockWithingsSource.transformToUnifiedFormat.mockResolvedValue(50);
@@ -76,9 +78,11 @@ describe('ImportService', () => {
 		it('should handle API errors gracefully', async () => {
 			// Mock authentication
 			mockIsAuthenticated.mockResolvedValue(true);
-			
-			// Mock getMostRecentTimestamp to fail with error  
-			mockWithingsSource.getMostRecentTimestamp.mockRejectedValue(new Error('API connection failed'));
+
+			// Mock getMostRecentTimestamp to fail with error
+			mockWithingsSource.getMostRecentTimestamp.mockRejectedValue(
+				new Error('API connection failed')
+			);
 
 			const result = await importService.importData();
 
@@ -89,10 +93,10 @@ describe('ImportService', () => {
 		it('should handle no new measurements', async () => {
 			// Mock authentication
 			mockIsAuthenticated.mockResolvedValue(true);
-			
+
 			// Mock getMostRecentTimestamp
 			mockWithingsSource.getMostRecentTimestamp.mockResolvedValue(new Date('2023-12-01T10:00:00Z'));
-			
+
 			// Mock no new measurements
 			mockWithingsSource.importIncrementalDataToCSV.mockResolvedValue(0);
 			mockWithingsSource.transformToUnifiedFormat.mockResolvedValue(0);
@@ -107,10 +111,10 @@ describe('ImportService', () => {
 		it('should generate correct file paths', async () => {
 			// Mock authentication
 			mockIsAuthenticated.mockResolvedValue(true);
-			
+
 			// Mock getMostRecentTimestamp
 			mockWithingsSource.getMostRecentTimestamp.mockResolvedValue(new Date('2023-12-01T10:00:00Z'));
-			
+
 			// Mock the import methods
 			mockWithingsSource.importIncrementalDataToCSV.mockResolvedValue(10);
 			mockWithingsSource.transformToUnifiedFormat.mockResolvedValue(15);
@@ -126,7 +130,7 @@ describe('ImportService', () => {
 		it('should successfully import all historical data', async () => {
 			// Mock authentication
 			mockIsAuthenticated.mockResolvedValue(true);
-			
+
 			// Mock the import methods
 			mockWithingsSource.importAllDataToCSV.mockResolvedValue(250);
 			mockWithingsSource.transformToUnifiedFormat.mockResolvedValue(250);
@@ -152,7 +156,7 @@ describe('ImportService', () => {
 		it('should handle API errors gracefully', async () => {
 			// Mock authentication
 			mockIsAuthenticated.mockResolvedValue(true);
-			
+
 			// Mock API error
 			mockWithingsSource.importAllDataToCSV.mockRejectedValue(new Error('Network timeout'));
 
@@ -165,7 +169,7 @@ describe('ImportService', () => {
 		it('should handle no measurements available', async () => {
 			// Mock authentication
 			mockIsAuthenticated.mockResolvedValue(true);
-			
+
 			// Mock no measurements
 			mockWithingsSource.importAllDataToCSV.mockResolvedValue(0);
 			mockWithingsSource.transformToUnifiedFormat.mockResolvedValue(0);
@@ -245,14 +249,14 @@ describe('ImportService', () => {
 		it('should use incremental import when data exists', async () => {
 			// Mock authentication
 			mockIsAuthenticated.mockResolvedValue(true);
-			
+
 			// Mock existing data
 			mockFsAccess.mockResolvedValue(undefined);
 			mockFsReadFile.mockResolvedValue('Date,"Weight (kg)"\n2023-01-01,75.5\n');
-			
+
 			// Mock getMostRecentTimestamp for incremental import
 			mockWithingsSource.getMostRecentTimestamp.mockResolvedValue(new Date('2023-12-01T10:00:00Z'));
-			
+
 			// Mock incremental import
 			mockWithingsSource.importIncrementalDataToCSV.mockResolvedValue(5);
 			mockWithingsSource.transformToUnifiedFormat.mockResolvedValue(10);
@@ -268,10 +272,10 @@ describe('ImportService', () => {
 		it('should use full import when no data exists', async () => {
 			// Mock authentication
 			mockIsAuthenticated.mockResolvedValue(true);
-			
+
 			// Mock no existing data
 			mockFsAccess.mockRejectedValue(new Error('File not found'));
-			
+
 			// Mock full import
 			mockWithingsSource.importAllDataToCSV.mockResolvedValue(250);
 			mockWithingsSource.transformToUnifiedFormat.mockResolvedValue(250);
@@ -297,10 +301,10 @@ describe('ImportService', () => {
 		it('should handle errors gracefully', async () => {
 			// Mock authentication
 			mockIsAuthenticated.mockResolvedValue(true);
-			
+
 			// Mock data check error
 			mockFsAccess.mockRejectedValue(new Error('Permission denied'));
-			
+
 			// Mock import error
 			mockWithingsSource.importAllDataToCSV.mockRejectedValue(new Error('Network error'));
 
@@ -310,4 +314,4 @@ describe('ImportService', () => {
 			expect(result.message).toBe('Import failed: Network error');
 		});
 	});
-}); 
+});

@@ -45,10 +45,10 @@ export class ImportService {
 			}
 
 			const source = this.getWithingsSource();
-			
+
 			// Get the most recent timestamp from existing data
 			const mostRecentTimestamp = await source.getMostRecentTimestamp();
-			
+
 			let startDate: Date;
 			if (mostRecentTimestamp) {
 				// Start from 1 minute after the most recent entry to avoid duplicates
@@ -93,11 +93,10 @@ export class ImportService {
 				count,
 				total_unified: totalUnified
 			};
-
 		} catch (error) {
 			console.error('Error importing data:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-			
+
 			return {
 				success: false,
 				message: `Import failed: ${errorMessage}`
@@ -120,7 +119,7 @@ export class ImportService {
 			}
 
 			const source = this.getWithingsSource();
-			
+
 			// Import all available data
 			const count = await source.importAllDataToCSV();
 
@@ -154,11 +153,10 @@ export class ImportService {
 				count,
 				total_unified: totalUnified
 			};
-
 		} catch (error) {
 			console.error('Error importing all data:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-			
+
 			return {
 				success: false,
 				message: `Import failed: ${errorMessage}`
@@ -173,10 +171,10 @@ export class ImportService {
 		try {
 			const csvPath = join(getDataDir(), 'raw_data_withings_api.csv');
 			await fs.access(csvPath);
-			
+
 			// Check if file has content (more than just header)
 			const content = await fs.readFile(csvPath, 'utf-8');
-			const lines = content.split('\n').filter(line => line.trim());
+			const lines = content.split('\n').filter((line) => line.trim());
 			return lines.length > 1; // More than just header line
 		} catch {
 			return false;
@@ -200,7 +198,7 @@ export class ImportService {
 
 			// Check if data already exists
 			const hasData = await this.hasExistingData();
-			
+
 			if (hasData) {
 				// Use incremental import for existing data
 				return await this.importData();
@@ -211,7 +209,7 @@ export class ImportService {
 		} catch (error) {
 			console.error('Error in intelligent import:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-			
+
 			return {
 				success: false,
 				message: `Import failed: ${errorMessage}`
@@ -221,4 +219,4 @@ export class ImportService {
 }
 
 // Export singleton instance
-export const importService = new ImportService(); 
+export const importService = new ImportService();

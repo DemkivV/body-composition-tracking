@@ -16,7 +16,7 @@ export const authStore: Writable<AuthState> = writable(initialState);
 
 export const authActions = {
 	setAuthenticated: (authenticated: boolean) => {
-		authStore.update(state => ({
+		authStore.update((state) => ({
 			...state,
 			isAuthenticated: authenticated,
 			isAuthenticating: false,
@@ -25,7 +25,7 @@ export const authActions = {
 	},
 
 	setAuthenticating: (authenticating: boolean) => {
-		authStore.update(state => ({
+		authStore.update((state) => ({
 			...state,
 			isAuthenticating: authenticating,
 			error: authenticating ? null : state.error
@@ -33,7 +33,7 @@ export const authActions = {
 	},
 
 	setError: (error: string) => {
-		authStore.update(state => ({
+		authStore.update((state) => ({
 			...state,
 			isAuthenticating: false,
 			error
@@ -43,4 +43,4 @@ export const authActions = {
 	reset: () => {
 		authStore.set(initialState);
 	}
-}; 
+};

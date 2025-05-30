@@ -43,9 +43,12 @@ export class WithingsSource {
 	/**
 	 * Make authenticated request to Withings API
 	 */
-	private async makeRequest(action: string, params: Record<string, any> = {}): Promise<WithingsApiResponse> {
+	private async makeRequest(
+		action: string,
+		params: Record<string, any> = {}
+	): Promise<WithingsApiResponse> {
 		const token = await this.getToken();
-		
+
 		const requestParams = {
 			action,
 			...params
@@ -54,7 +57,7 @@ export class WithingsSource {
 		const response = await fetch(WITHINGS_MEASURE_URL, {
 			method: 'POST',
 			headers: {
-				'Authorization': `Bearer ${token.access_token}`,
+				Authorization: `Bearer ${token.access_token}`,
 				'Content-Type': 'application/x-www-form-urlencoded',
 				'User-Agent': 'body-composition-tracker/1.0'
 			},
@@ -120,7 +123,7 @@ export class WithingsSource {
 
 		for (const group of measureGroups) {
 			const timestamp = new Date(group.date * 1000);
-			
+
 			if (!measurementsByTimestamp.has(timestamp)) {
 				measurementsByTimestamp.set(timestamp, {});
 			}
@@ -181,7 +184,7 @@ export class WithingsSource {
 	 */
 	private static formatMetric(data: MeasurementData, key: keyof MeasurementData): string {
 		const value = data[key];
-		
+
 		if (value === undefined || value === null) {
 			return '';
 		}
@@ -208,7 +211,7 @@ export class WithingsSource {
 		const hours = String(date.getHours()).padStart(2, '0');
 		const minutes = String(date.getMinutes()).padStart(2, '0');
 		const seconds = String(date.getSeconds()).padStart(2, '0');
-		
+
 		return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 	}
 
@@ -229,14 +232,20 @@ export class WithingsSource {
 	/**
 	 * Write measurements to CSV file
 	 */
-	private async writeToCSV(filePath: string, measurements: Map<Date, MeasurementData>): Promise<void> {
+	private async writeToCSV(
+		filePath: string,
+		measurements: Map<Date, MeasurementData>
+	): Promise<void> {
 		// Ensure data directory exists
 		await fs.mkdir(getDataDir(), { recursive: true });
 
-		let csvContent = 'Date,"Weight (kg)","Fat mass (kg)","Bone mass (kg)","Muscle mass (kg)","Hydration (kg)",Comments\n';
+		let csvContent =
+			'Date,"Weight (kg)","Fat mass (kg)","Bone mass (kg)","Muscle mass (kg)","Hydration (kg)",Comments\n';
 
 		// Sort by timestamp in reverse chronological order (newest first)
-		const sortedTimestamps = Array.from(measurements.keys()).sort((a, b) => b.getTime() - a.getTime());
+		const sortedTimestamps = Array.from(measurements.keys()).sort(
+			(a, b) => b.getTime() - a.getTime()
+		);
 
 		for (const timestamp of sortedTimestamps) {
 			const measurementData = measurements.get(timestamp)!;
@@ -321,7 +330,7 @@ export class WithingsSource {
 							fat_mass_kg: parts[2] ? parseFloat(parts[2]) : undefined,
 							bone_mass_kg: parts[3] ? parseFloat(parts[3]) : undefined,
 							muscle_mass_kg: parts[4] ? parseFloat(parts[4]) : undefined,
-							hydration_kg: parts[5] ? parseFloat(parts[5]) : undefined,
+							hydration_kg: parts[5] ? parseFloat(parts[5]) : undefined
 						};
 
 						existingData.set(timestamp, measurementData);
@@ -342,14 +351,14 @@ export class WithingsSource {
 	 */
 	async getMostRecentTimestamp(): Promise<Date | null> {
 		const csvPath = this.getWithingsCsvPath();
-		
+
 		try {
 			const { existingTimestamps } = await this.loadExistingCSVData(csvPath);
-			
+
 			if (existingTimestamps.size === 0) {
 				return null;
 			}
-			
+
 			// Find the most recent timestamp (highest number)
 			const mostRecentTime = Math.max(...Array.from(existingTimestamps));
 			return new Date(mostRecentTime);
@@ -365,7 +374,9 @@ export class WithingsSource {
 	async importIncrementalDataToCSV(startDate: Date): Promise<number> {
 		const endDate = new Date();
 
-		console.log(`Importing incremental data from ${startDate.toDateString()} to ${endDate.toDateString()}`);
+		console.log(
+			`Importing incremental data from ${startDate.toDateString()} to ${endDate.toDateString()}`
+		);
 
 		const response = await this.makeRequest('getmeas', {
 			startdate: Math.floor(startDate.getTime() / 1000),
@@ -404,7 +415,9 @@ export class WithingsSource {
 		// Write updated data to CSV
 		await this.writeToCSV(csvPath, allMeasurements);
 
-		console.log(`Successfully imported ${newCount} new measurements (total: ${allMeasurements.size}) to ${csvPath}`);
+		console.log(
+			`Successfully imported ${newCount} new measurements (total: ${allMeasurements.size}) to ${csvPath}`
+		);
 		return newCount;
 	}
 
@@ -428,10 +441,10 @@ export class WithingsSource {
 
 		// Count lines to return number of entries
 		const content = await fs.readFile(unifiedCsvPath, 'utf-8');
-		const lines = content.split('\n').filter(line => line.trim());
+		const lines = content.split('\n').filter((line) => line.trim());
 		const entryCount = Math.max(0, lines.length - 1); // Subtract header
 
 		console.log(`Transformed ${entryCount} entries to unified format`);
 		return entryCount;
 	}
-} 
+}

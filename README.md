@@ -5,7 +5,7 @@ A SvelteKit web application for tracking and analyzing body composition data fro
 ## Features
 
 - **Easy Setup**: Configure Withings API credentials through a user-friendly interface
-- **OAuth Authentication**: Secure OAuth 2.0 integration with Withings API  
+- **OAuth Authentication**: Secure OAuth 2.0 integration with Withings API
 - **Data Import**: Import body composition measurements from Withings
 - **Raw Data View**: Display imported measurements in tabular format
 - **Analysis & Visualization**: Interactive charts and trend analysis
@@ -35,12 +35,14 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 On your first visit, you'll see a configuration screen:
 
 1. **Get Withings API Credentials:**
+
    - Go to [Withings Developer Dashboard](https://developer.withings.com/dashboard/)
    - Create a new application
    - Set the redirect URI to: `http://localhost:5173/auth/callback`
    - Copy your Client ID and Client Secret
 
 2. **Configure in the App:**
+
    - Enter your Client ID and Client Secret in the configuration form
    - Click "Save Configuration"
    - Your credentials are securely stored in `data/config.json`
@@ -74,7 +76,7 @@ npm test
 # Run unit tests only
 npm run test:unit
 
-# Run E2E tests only  
+# Run E2E tests only
 npm run test:e2e
 
 # Build for production
@@ -119,15 +121,18 @@ npm run test:e2e
 ## Troubleshooting
 
 ### Configuration Issues
+
 - Make sure your Withings app redirect URI matches: `http://localhost:5173/auth/callback`
 - Check that your Client ID and Client Secret are correct
 - Verify you have the necessary permissions on your Withings application
 
 ### Authentication Issues
+
 - Clear your stored tokens by deleting `data/authentication_token_withings.json`
 - Try the authentication flow again
 - Check browser console for detailed error messages
 
 ### Development Issues
+
 - Environment variables in `.env` are only used as fallbacks during development
 - The app should work without any `.env` configuration for end users

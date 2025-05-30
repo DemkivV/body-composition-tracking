@@ -5,7 +5,7 @@ import { generateAuthUrl } from '$lib/server/withings-auth.js';
 export const GET: RequestHandler = async () => {
 	try {
 		const { authUrl, state } = await generateAuthUrl();
-		
+
 		return json({
 			success: true,
 			authUrl,
@@ -13,10 +13,13 @@ export const GET: RequestHandler = async () => {
 		});
 	} catch (error) {
 		console.error('Failed to generate auth URL:', error);
-		
-		return json({
-			success: false,
-			message: error instanceof Error ? error.message : 'Failed to generate authorization URL'
-		}, { status: 500 });
+
+		return json(
+			{
+				success: false,
+				message: error instanceof Error ? error.message : 'Failed to generate authorization URL'
+			},
+			{ status: 500 }
+		);
 	}
-}; 
+};

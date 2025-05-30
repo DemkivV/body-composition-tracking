@@ -197,4 +197,4 @@ describe('AuthService', () => {
 			await expect(authService.logout()).rejects.toThrow('Network error');
 		});
 	});
-}); 
+});

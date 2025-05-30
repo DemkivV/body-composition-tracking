@@ -17,7 +17,7 @@
 		try {
 			const response = await fetch('/api/auth/configure');
 			const data = await response.json();
-			
+
 			if (data.success) {
 				isConfigured = data.configured;
 			}
@@ -43,18 +43,16 @@
 	<meta name="description" content="Track and analyze your body composition data over time" />
 </svelte:head>
 
-<div class="min-h-screen">
+<div class="page-container">
 	<div class="app-container">
-		<header class="mb-8">
+		<header class="page-header">
 			<h1 class="gradient-heading">Body Composition Tracker</h1>
 		</header>
 
 		{#if isCheckingConfig}
 			<div class="tab-content">
-				<div class="text-center">
-					<div class="status authenticating">
-						Loading...
-					</div>
+				<div class="loading-section">
+					<div class="status authenticating">Loading...</div>
 				</div>
 			</div>
 		{:else if !isConfigured}
@@ -63,27 +61,27 @@
 			</div>
 		{:else}
 			<TabNavigation {activeTab} on:tabChange={handleTabChange} />
-			
+
 			<div class="tab-content">
 				{#if activeTab === 'data-import'}
 					<AuthSection />
 				{:else if activeTab === 'raw-data'}
 					<div class="feature-preview">
-						<h2 class="text-xl font-semibold text-slate-200 mb-4">Raw Data</h2>
-						<p class="text-slate-300">
+						<h2 class="feature-title">Raw Data</h2>
+						<p class="feature-description">
 							View your imported body composition data in table format.
 						</p>
-						<p class="text-slate-400 text-sm mt-2">
+						<p class="feature-note">
 							This feature will be available after implementing data import functionality.
 						</p>
 					</div>
 				{:else if activeTab === 'analysis'}
 					<div class="feature-preview">
-						<h2 class="text-xl font-semibold text-slate-200 mb-4">Analysis & Visualization</h2>
-						<p class="text-slate-300">
+						<h2 class="feature-title">Analysis & Visualization</h2>
+						<p class="feature-description">
 							Interactive charts and trend analysis of your body composition data.
 						</p>
-						<p class="text-slate-400 text-sm mt-2">
+						<p class="feature-note">
 							This feature will be available after implementing data import functionality.
 						</p>
 					</div>

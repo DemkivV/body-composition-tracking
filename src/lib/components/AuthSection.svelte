@@ -54,7 +54,7 @@
 
 	async function handleImport() {
 		if (isImporting || !authState.isAuthenticated) return;
-		
+
 		isImporting = true;
 		importResult = null;
 		progressMessage = '';
@@ -68,7 +68,7 @@
 					progressMessage = `Error: ${error}`;
 				}
 			});
-			
+
 			// Update data existence status after import
 			if (importResult.success) {
 				await checkDataExists();
@@ -89,11 +89,11 @@
 		if (authState.isAuthenticated) {
 			return 'btn authenticated';
 		}
-		
+
 		if (authState.isAuthenticating) {
 			return 'btn secondary';
 		}
-		
+
 		return 'btn';
 	}
 
@@ -102,26 +102,26 @@
 		if (isImporting && progressMessage) {
 			return progressMessage;
 		}
-		
+
 		if (importResult) {
 			// Use simplified message format
 			return importResult.message;
 		}
-		
+
 		// Priority 2: Auth errors
 		if (authState.error) {
 			return authState.error;
 		}
-		
+
 		// Priority 3: Auth status
 		if (authState.isAuthenticating) {
 			return 'Opening Withings authorization page...';
 		}
-		
+
 		if (authState.isAuthenticated) {
 			return 'Successfully authenticated with Withings!';
 		}
-		
+
 		return 'Not authenticated yet. Click "Authenticate" to connect to your Withings account.';
 	}
 
@@ -130,52 +130,42 @@
 		if (isImporting) {
 			return 'feedback authenticating'; // Use similar styling to auth loading
 		}
-		
+
 		if (importResult) {
 			return importResult.success ? 'feedback authenticated' : 'feedback error';
 		}
-		
+
 		// Auth status classes
 		if (authState.error) {
 			return 'feedback error';
 		}
-		
+
 		if (authState.isAuthenticated) {
 			return 'feedback authenticated';
 		}
-		
+
 		if (authState.isAuthenticating) {
 			return 'feedback authenticating';
 		}
-		
+
 		return 'feedback not-authenticated';
 	}
 </script>
 
-<div class="space-y-6">
+<div class="auth-section">
 	<div class="data-source-row">
-		<label for="data-source" class="form-label">
-			Data Source:
-		</label>
-		<select
-			id="data-source"
-			class="form-select"
-		>
+		<label for="data-source" class="form-label"> Data Source: </label>
+		<select id="data-source" class="form-select">
 			<option value="withings" selected>Withings API</option>
 		</select>
 	</div>
 
-	<div class="space-y-4">
+	<div class="auth-controls">
 		<div class="button-group-split">
 			<!-- Left side buttons -->
 			<div class="button-group-left">
 				{#if authState.isAuthenticated}
-					<button
-						class="btn authenticated"
-						disabled={true}
-					>
-						✓ Authenticated
-					</button>
+					<button class="btn authenticated" disabled={true}> ✓ Authenticated </button>
 				{:else}
 					<button
 						class={getButtonClass()}
@@ -185,7 +175,7 @@
 						{getButtonText()}
 					</button>
 				{/if}
-				
+
 				<button
 					class="btn secondary"
 					disabled={!authState.isAuthenticated || isImporting}
@@ -202,20 +192,10 @@
 
 			<!-- Right side buttons -->
 			<div class="button-group-right">
-				<button
-					class="btn secondary"
-					disabled={!authState.isAuthenticated}
-				>
-					Clear Data
-				</button>
-				
+				<button class="btn secondary" disabled={!authState.isAuthenticated}> Clear Data </button>
+
 				{#if authState.isAuthenticated}
-					<button
-						class="btn secondary"
-						on:click={handleLogout}
-					>
-						Logout
-					</button>
+					<button class="btn secondary" on:click={handleLogout}> Logout </button>
 				{/if}
 			</div>
 		</div>
@@ -232,4 +212,4 @@
 			</div>
 		{/if}
 	</div>
-</div> 
+</div>

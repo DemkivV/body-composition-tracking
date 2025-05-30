@@ -36,7 +36,7 @@ class ImportClientService {
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 			options.onError?.(`Import failed: ${errorMessage}`);
-			
+
 			return {
 				success: false,
 				message: errorMessage
@@ -74,7 +74,7 @@ class ImportClientService {
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 			options.onError?.(`Import failed: ${errorMessage}`);
-			
+
 			return {
 				success: false,
 				message: errorMessage
@@ -136,7 +136,7 @@ class ImportClientService {
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 			options.onError?.(`Import failed: ${errorMessage}`);
-			
+
 			return {
 				success: false,
 				message: errorMessage
@@ -145,4 +145,4 @@ class ImportClientService {
 	}
 }
 
-export const importClientService = new ImportClientService(); 
+export const importClientService = new ImportClientService();

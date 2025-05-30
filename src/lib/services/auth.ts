@@ -64,7 +64,9 @@ class AuthService {
 			);
 
 			if (!this.authWindow) {
-				throw new Error('Failed to open authentication window. Please check if popups are blocked.');
+				throw new Error(
+					'Failed to open authentication window. Please check if popups are blocked.'
+				);
 			}
 
 			// Monitor for successful authentication
@@ -89,7 +91,7 @@ class AuthService {
 				if (this.authWindow?.closed) {
 					this.stopAuthPolling();
 					authActions.setAuthenticating(false);
-					
+
 					// Check if authentication was successful
 					const statusResponse = await this.checkStatus();
 					if (!statusResponse.authenticated) {
@@ -147,4 +149,4 @@ class AuthService {
 	}
 }
 
-export const authService = new AuthService(); 
+export const authService = new AuthService();

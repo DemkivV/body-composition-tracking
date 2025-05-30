@@ -21,24 +21,26 @@ global.fetch = vi.fn().mockImplementation((url: string) => {
 	if (url.includes('/api/auth/configure')) {
 		return Promise.resolve({
 			ok: true,
-			json: () => Promise.resolve({
-				success: true,
-				configured: false
-			})
+			json: () =>
+				Promise.resolve({
+					success: true,
+					configured: false
+				})
 		} as Response);
 	}
-	
+
 	// Handle other auth status checks
 	if (url.includes('/api/auth/status')) {
 		return Promise.resolve({
 			ok: true,
-			json: () => Promise.resolve({
-				success: true,
-				authenticated: false
-			})
+			json: () =>
+				Promise.resolve({
+					success: true,
+					authenticated: false
+				})
 		} as Response);
 	}
-	
+
 	// Default fallback
 	return Promise.resolve({
 		ok: true,

@@ -40,7 +40,7 @@
 			}
 
 			status = 'Authentication successful! Redirecting...';
-			
+
 			// Update auth store
 			authActions.setAuthenticated(true);
 
@@ -48,7 +48,6 @@
 			setTimeout(() => {
 				goto('/', { replaceState: true });
 			}, 2000);
-
 		} catch (error) {
 			console.error('OAuth callback error:', error);
 			status = error instanceof Error ? error.message : 'Authentication failed';
@@ -69,22 +68,22 @@
 	<title>Authentication - Body Composition Tracker</title>
 </svelte:head>
 
-<div class="min-h-screen flex items-center justify-center">
+<div class="auth-callback-page">
 	<div class="app-container">
-		<div class="text-center">
+		<div class="callback-content">
 			<h1 class="gradient-heading">Body Composition Tracker</h1>
-			
-			<div class="tab-content max-w-md mx-auto">
-				<div class="text-center space-y-4">
+
+			<div class="callback-status tab-content">
+				<div class="status-content">
 					{#if isError}
 						<div class="status error">
-							<h3 class="text-lg font-semibold mb-2">Authentication Failed</h3>
+							<h3 class="status-title">Authentication Failed</h3>
 							<p>{status}</p>
-							<p class="text-sm mt-4">Redirecting back to the main page...</p>
+							<p class="redirect-notice">Redirecting back to the main page...</p>
 						</div>
 					{:else}
 						<div class="status authenticating">
-							<h3 class="text-lg font-semibold mb-2">Authenticating</h3>
+							<h3 class="status-title">Authenticating</h3>
 							<p>{status}</p>
 						</div>
 					{/if}
@@ -92,4 +91,4 @@
 			</div>
 		</div>
 	</div>
-</div> 
+</div>

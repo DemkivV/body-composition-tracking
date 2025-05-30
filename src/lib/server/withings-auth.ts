@@ -45,12 +45,12 @@ async function loadToken(): Promise<WithingsToken | null> {
 		const tokenPath = getTokenFilePath();
 		const tokenData = await fs.readFile(tokenPath, 'utf-8');
 		const token = JSON.parse(tokenData);
-		
+
 		// Validate token structure
 		if (!token.access_token || !token.refresh_token) {
 			return null;
 		}
-		
+
 		return token;
 	} catch (error) {
 		// Token file doesn't exist or is invalid
@@ -64,7 +64,7 @@ async function loadToken(): Promise<WithingsToken | null> {
 async function saveToken(token: WithingsToken): Promise<void> {
 	const tokenPath = getTokenFilePath();
 	await fs.writeFile(tokenPath, JSON.stringify(token, null, 2), 'utf-8');
-	
+
 	// Set restrictive permissions (readable only by owner)
 	try {
 		await fs.chmod(tokenPath, 0o600);
@@ -90,14 +90,14 @@ async function clearToken(): Promise<void> {
  */
 export async function generateAuthUrl(): Promise<{ authUrl: string; state: string }> {
 	const config = await getWithingsConfig();
-	
+
 	if (!config.clientId) {
 		throw new Error('Withings client ID not configured. Please set up your API credentials first.');
 	}
-	
+
 	const state = randomBytes(32).toString('hex');
 	const codeVerifier = randomBytes(32).toString('hex');
-	
+
 	// Store auth state for validation
 	authStates.set(state, {
 		state,
@@ -124,7 +124,7 @@ export async function generateAuthUrl(): Promise<{ authUrl: string; state: strin
 	});
 
 	const authUrl = `${WITHINGS_AUTH_URL}?${params.toString()}`;
-	
+
 	return { authUrl, state };
 }
 
@@ -133,11 +133,13 @@ export async function generateAuthUrl(): Promise<{ authUrl: string; state: strin
  */
 export async function exchangeCodeForToken(code: string, state: string): Promise<WithingsToken> {
 	const config = await getWithingsConfig();
-	
+
 	if (!config.clientId || !config.clientSecret) {
-		throw new Error('Withings credentials not configured. Please set up your API credentials first.');
+		throw new Error(
+			'Withings credentials not configured. Please set up your API credentials first.'
+		);
 	}
-	
+
 	// Validate state
 	const authState = authStates.get(state);
 	if (!authState) {
@@ -171,12 +173,14 @@ export async function exchangeCodeForToken(code: string, state: string): Promise
 	}
 
 	const responseData = await response.json();
-	
+
 	// Withings returns tokens in a 'body' field
 	const tokenInfo = responseData.body || responseData;
-	
+
 	if (tokenInfo.error) {
-		throw new Error(`Withings API error: ${tokenInfo.error} - ${tokenInfo.error_description || ''}`);
+		throw new Error(
+			`Withings API error: ${tokenInfo.error} - ${tokenInfo.error_description || ''}`
+		);
 	}
 
 	if (!tokenInfo.access_token) {
@@ -186,7 +190,7 @@ export async function exchangeCodeForToken(code: string, state: string): Promise
 	// Add expires_at timestamp
 	const token: WithingsToken = {
 		...tokenInfo,
-		expires_at: Date.now() + (tokenInfo.expires_in * 1000)
+		expires_at: Date.now() + tokenInfo.expires_in * 1000
 	};
 
 	// Save token to file
@@ -199,7 +203,7 @@ export async function exchangeCodeForToken(code: string, state: string): Promise
  * Check if a token is expired
  */
 function isTokenExpired(token: WithingsToken): boolean {
-	return Date.now() > (token.expires_at - 60000); // 1 minute buffer
+	return Date.now() > token.expires_at - 60000; // 1 minute buffer
 }
 
 /**
@@ -207,11 +211,11 @@ function isTokenExpired(token: WithingsToken): boolean {
  */
 export async function refreshToken(token: WithingsToken): Promise<WithingsToken> {
 	const config = await getWithingsConfig();
-	
+
 	if (!config.clientId || !config.clientSecret) {
 		throw new Error('Withings credentials not configured');
 	}
-	
+
 	if (!token.refresh_token) {
 		throw new Error('No refresh token available');
 	}
@@ -242,7 +246,9 @@ export async function refreshToken(token: WithingsToken): Promise<WithingsToken>
 	const tokenInfo = responseData.body || responseData;
 
 	if (tokenInfo.error) {
-		throw new Error(`Withings API error: ${tokenInfo.error} - ${tokenInfo.error_description || ''}`);
+		throw new Error(
+			`Withings API error: ${tokenInfo.error} - ${tokenInfo.error_description || ''}`
+		);
 	}
 
 	if (!tokenInfo.access_token) {
@@ -253,7 +259,7 @@ export async function refreshToken(token: WithingsToken): Promise<WithingsToken>
 	const refreshedToken: WithingsToken = {
 		...token,
 		...tokenInfo,
-		expires_at: Date.now() + (tokenInfo.expires_in * 1000)
+		expires_at: Date.now() + tokenInfo.expires_in * 1000
 	};
 
 	// Save updated token
@@ -297,4 +303,4 @@ export async function isAuthenticated(): Promise<boolean> {
  */
 export async function clearAuthentication(): Promise<void> {
 	await clearToken();
-} 
+}

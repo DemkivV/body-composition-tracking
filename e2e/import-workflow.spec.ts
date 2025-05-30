@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Import Workflow', () => {
 	test.beforeEach(async ({ page }) => {
 		// Mock configuration check - app is configured
-		await page.route('/api/auth/configure', async route => {
+		await page.route('/api/auth/configure', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -15,7 +15,7 @@ test.describe('Import Workflow', () => {
 		});
 
 		// Mock auth status check - not authenticated initially
-		await page.route('/api/auth/status', async route => {
+		await page.route('/api/auth/status', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -28,7 +28,7 @@ test.describe('Import Workflow', () => {
 		});
 
 		// Mock has existing data check - no data initially
-		await page.route('/api/import/has-data', async route => {
+		await page.route('/api/import/has-data', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -43,30 +43,30 @@ test.describe('Import Workflow', () => {
 	test('should display initial unauthenticated state correctly', async ({ page }) => {
 		// Check that page loads correctly
 		await expect(page.locator('h1')).toContainText('Body Composition Tracker');
-		
+
 		// Check that data import tab is active by default
 		await expect(page.locator('[data-tab="data-import"]')).toHaveClass(/active/);
-		
+
 		// Check that data source is set to Withings
 		await expect(page.locator('#data-source')).toHaveValue('withings');
-		
+
 		// Check that authenticate button is visible and enabled
 		const authButton = page.locator('button:has-text("Authenticate")').first();
 		await expect(authButton).toBeVisible();
 		await expect(authButton).toBeEnabled();
-		
+
 		// Check that import button is disabled when not authenticated
 		const importButton = page.locator('button:has-text("Import Data")');
 		await expect(importButton).toBeVisible();
 		await expect(importButton).toBeDisabled();
-		
+
 		// Check status message
 		await expect(page.locator('.feedback')).toContainText('Not authenticated yet');
 	});
 
 	test('should handle authentication flow correctly', async ({ page }) => {
 		// Mock authentication request - simulate the auth service response
-		await page.route('/api/auth/authenticate', async route => {
+		await page.route('/api/auth/authenticate', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -81,25 +81,27 @@ test.describe('Import Workflow', () => {
 		await page.addInitScript(() => {
 			let mockWindow: any = {
 				closed: false,
-				close: () => { mockWindow.closed = true; },
+				close: () => {
+					mockWindow.closed = true;
+				},
 				focus: () => {}
 			};
-			
+
 			window.open = () => {
 				// Simulate successful authentication without delay for test reliability
 				setTimeout(() => {
 					mockWindow.closed = true;
-				}, 500); 
+				}, 500);
 				return mockWindow as Window;
 			};
 		});
 
 		// Mock the auth status to return authenticated after a few calls
 		let authStatusCalls = 0;
-		await page.route('/api/auth/status', async route => {
+		await page.route('/api/auth/status', async (route) => {
 			authStatusCalls++;
-			// Return authenticated after second call 
-			const authenticated = authStatusCalls > 1; 
+			// Return authenticated after second call
+			const authenticated = authStatusCalls > 1;
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -117,10 +119,14 @@ test.describe('Import Workflow', () => {
 
 		// Focus on the end result: successful authentication
 		// The intermediate states may be too transient to reliably test
-		await expect(page.locator('button:has-text("✓ Authenticated")')).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('button:has-text("✓ Authenticated")')).toBeVisible({
+			timeout: 10000
+		});
 		await expect(page.locator('button:has-text("Logout")')).toBeVisible();
-		await expect(page.locator('.feedback')).toContainText('Successfully authenticated with Withings');
-		
+		await expect(page.locator('.feedback')).toContainText(
+			'Successfully authenticated with Withings'
+		);
+
 		// Check that import button is now enabled
 		const importButton = page.locator('button:has-text("Import Data")');
 		await expect(importButton).toBeEnabled();
@@ -128,7 +134,7 @@ test.describe('Import Workflow', () => {
 
 	test('should handle successful data import', async ({ page }) => {
 		// Setup authenticated state from the beginning
-		await page.route('/api/auth/status', async route => {
+		await page.route('/api/auth/status', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -141,7 +147,7 @@ test.describe('Import Workflow', () => {
 		});
 
 		// Mock successful import
-		await page.route('/api/import/intelligent', async route => {
+		await page.route('/api/import/intelligent', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -150,14 +156,15 @@ test.describe('Import Workflow', () => {
 					importType: 'full',
 					recordsProcessed: 25,
 					newRecords: 25,
-					message: 'Successfully imported 25 body composition measurements from your Withings account.'
+					message:
+						'Successfully imported 25 body composition measurements from your Withings account.'
 				})
 			});
 		});
 
 		// Mock updated has data check after import
 		let hasDataCalls = 0;
-		await page.route('/api/import/has-data', async route => {
+		await page.route('/api/import/has-data', async (route) => {
 			hasDataCalls++;
 			await route.fulfill({
 				status: 200,
@@ -178,19 +185,22 @@ test.describe('Import Workflow', () => {
 		await importButton.click();
 
 		// Check importing state
-		await expect(page.locator('button:has-text("Importing...")')).toBeVisible();
-		
+		// The button should be disabled during import, not change text to "Importing..."
+		await expect(page.locator('button:has-text("Import Data")')).toBeDisabled();
+
 		// Wait for import to complete
 		await expect(page.locator('.feedback.authenticated')).toBeVisible({ timeout: 10000 });
-		await expect(page.locator('.feedback')).toContainText('Successfully imported 25 body composition measurements');
-		
+		await expect(page.locator('.feedback')).toContainText(
+			'Successfully imported 25 body composition measurements'
+		);
+
 		// Button should change to "Update Data" after successful import
 		await expect(page.locator('button:has-text("Update Data")')).toBeVisible();
 	});
 
 	test('should handle data import errors correctly', async ({ page }) => {
 		// Setup authenticated state
-		await page.route('/api/auth/status', async route => {
+		await page.route('/api/auth/status', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -203,7 +213,7 @@ test.describe('Import Workflow', () => {
 		});
 
 		// Mock import error (matches the actual error message format)
-		await page.route('/api/import/intelligent', async route => {
+		await page.route('/api/import/intelligent', async (route) => {
 			await route.fulfill({
 				status: 500,
 				contentType: 'application/json',
@@ -229,14 +239,14 @@ test.describe('Import Workflow', () => {
 		// Wait for error to appear (matches the actual error format from import-client.ts)
 		await expect(page.locator('.feedback.error')).toBeVisible({ timeout: 10000 });
 		await expect(page.locator('.feedback')).toContainText('HTTP error! status: 500');
-		
+
 		// Import button should be enabled again after error
 		await expect(page.locator('button:has-text("Import Data")')).toBeEnabled();
 	});
 
 	test('should handle logout correctly', async ({ page }) => {
 		// Setup authenticated state
-		await page.route('/api/auth/status', async route => {
+		await page.route('/api/auth/status', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -249,7 +259,7 @@ test.describe('Import Workflow', () => {
 		});
 
 		// Mock logout
-		await page.route('/api/auth/logout', async route => {
+		await page.route('/api/auth/logout', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -277,7 +287,7 @@ test.describe('Import Workflow', () => {
 
 	test('should display correct button text based on data existence', async ({ page }) => {
 		// Setup authenticated state
-		await page.route('/api/auth/status', async route => {
+		await page.route('/api/auth/status', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -290,7 +300,7 @@ test.describe('Import Workflow', () => {
 		});
 
 		// Mock has existing data check - has data
-		await page.route('/api/import/has-data', async route => {
+		await page.route('/api/import/has-data', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -303,7 +313,7 @@ test.describe('Import Workflow', () => {
 
 		// Wait for authenticated state and data existence check
 		await expect(page.locator('button:has-text("✓ Authenticated")')).toBeVisible();
-		
+
 		// When data exists, button should say "Update Data"
 		await expect(page.locator('button:has-text("Update Data")')).toBeVisible();
 	});
@@ -311,21 +321,21 @@ test.describe('Import Workflow', () => {
 	test('should navigate between tabs correctly', async ({ page }) => {
 		// Click on raw data tab
 		await page.locator('[data-tab="raw-data"]').click();
-		
+
 		// Check that raw data content is shown
 		await expect(page.locator('h2:has-text("Raw Data")')).toBeVisible();
 		await expect(page.locator('text=View your imported body composition data')).toBeVisible();
-		
+
 		// Click on analysis tab
 		await page.locator('[data-tab="analysis"]').click();
-		
+
 		// Check that analysis content is shown
 		await expect(page.locator('h2:has-text("Analysis & Visualization")')).toBeVisible();
 		await expect(page.locator('text=Interactive charts and trend analysis')).toBeVisible();
-		
+
 		// Go back to data import tab
 		await page.locator('[data-tab="data-import"]').click();
-		
+
 		// Check that import section is shown again
 		await expect(page.locator('#data-source')).toBeVisible();
 		await expect(page.locator('button:has-text("Authenticate")')).toBeVisible();
@@ -333,7 +343,7 @@ test.describe('Import Workflow', () => {
 
 	test('should handle unconfigured app state', async ({ page }) => {
 		// Mock configuration check - app is not configured
-		await page.route('/api/auth/configure', async route => {
+		await page.route('/api/auth/configure', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -349,14 +359,14 @@ test.describe('Import Workflow', () => {
 
 		// Should show configuration section instead of tabs
 		await expect(page.locator('h2:has-text("Withings API Configuration")')).toBeVisible();
-		
+
 		// Tabs should not be visible
 		await expect(page.locator('[data-tab="data-import"]')).not.toBeVisible();
 	});
 
 	test('should handle authentication errors gracefully', async ({ page }) => {
 		// Mock authentication error
-		await page.route('/api/auth/authenticate', async route => {
+		await page.route('/api/auth/authenticate', async (route) => {
 			await route.fulfill({
 				status: 500,
 				contentType: 'application/json',
@@ -374,8 +384,8 @@ test.describe('Import Workflow', () => {
 		// Wait for error to appear (matches the actual error format from auth.ts)
 		await expect(page.locator('.feedback.error')).toBeVisible({ timeout: 10000 });
 		await expect(page.locator('.feedback')).toContainText('Failed to get authorization URL');
-		
+
 		// Button should be enabled again after error
 		await expect(page.locator('button:has-text("Authenticate")')).toBeEnabled();
 	});
-}); 
+});

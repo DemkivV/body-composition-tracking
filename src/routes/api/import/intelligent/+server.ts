@@ -8,9 +8,12 @@ export const POST: RequestHandler = async () => {
 		return json(result);
 	} catch (error) {
 		console.error('Intelligent import API error:', error);
-		return json({
-			success: false,
-			message: 'Internal server error during import'
-		}, { status: 500 });
+		return json(
+			{
+				success: false,
+				message: 'Internal server error during import'
+			},
+			{ status: 500 }
+		);
 	}
-}; 
+};
