@@ -69,7 +69,7 @@
 				message = data.message || 'Failed to save configuration';
 				isError = true;
 			}
-		} catch (error) {
+		} catch (_error) {
 			message = 'Network error: Failed to save configuration';
 			isError = true;
 		} finally {

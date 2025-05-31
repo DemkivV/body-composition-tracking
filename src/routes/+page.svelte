@@ -3,7 +3,7 @@
 	import TabNavigation from '$lib/components/TabNavigation.svelte';
 	import AuthSection from '$lib/components/AuthSection.svelte';
 	import ConfigSection from '$lib/components/ConfigSection.svelte';
-	import { authStore } from '$lib/stores/auth.js';
+	import RawDataTable from '$lib/components/RawDataTable.svelte';
 
 	let activeTab = 'data-import';
 	let isConfigured = false;
@@ -66,15 +66,7 @@
 				{#if activeTab === 'data-import'}
 					<AuthSection />
 				{:else if activeTab === 'raw-data'}
-					<div class="feature-preview">
-						<h2 class="feature-title">Raw Data</h2>
-						<p class="feature-description">
-							View your imported body composition data in table format.
-						</p>
-						<p class="feature-note">
-							This feature will be available after implementing data import functionality.
-						</p>
-					</div>
+					<RawDataTable />
 				{:else if activeTab === 'analysis'}
 					<div class="feature-preview">
 						<h2 class="feature-title">Analysis & Visualization</h2>

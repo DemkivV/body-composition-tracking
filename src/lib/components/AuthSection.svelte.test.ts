@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import AuthSection from './AuthSection.svelte';
-import { authActions } from '../stores/auth';
-import { authService } from '../services/auth';
-import * as importClient from '../services/import-client.js';
+import { authActions } from '../stores/auth.js';
+import { authService } from '../services/auth.js';
+import { importClientService } from '../services/import-client.js';
 
-// Mock the auth service
-vi.mock('../services/auth', () => ({
+// Mock the services
+vi.mock('../services/auth.js', () => ({
 	authService: {
 		checkStatus: vi.fn(),
 		authenticate: vi.fn(),
@@ -14,15 +14,15 @@ vi.mock('../services/auth', () => ({
 	}
 }));
 
-// Mock the import client service
 vi.mock('../services/import-client.js', () => ({
 	importClientService: {
-		intelligentImport: vi.fn(),
-		hasExistingData: vi.fn()
+		hasExistingData: vi.fn(),
+		intelligentImport: vi.fn()
 	}
 }));
 
-const mockImportClientService = vi.mocked(importClient).importClientService;
+const mockAuthService = vi.mocked(authService);
+const mockImportClientService = vi.mocked(importClientService);
 
 describe('AuthSection Component', () => {
 	beforeEach(() => {
@@ -34,7 +34,7 @@ describe('AuthSection Component', () => {
 	});
 
 	it('should render with initial state', async () => {
-		(authService.checkStatus as any).mockResolvedValueOnce({
+		mockAuthService.checkStatus.mockResolvedValueOnce({
 			success: true,
 			authenticated: false
 		});
@@ -60,11 +60,11 @@ describe('AuthSection Component', () => {
 	});
 
 	it('should call authenticate when authenticate button is clicked', async () => {
-		(authService.checkStatus as any).mockResolvedValueOnce({
+		mockAuthService.checkStatus.mockResolvedValueOnce({
 			success: true,
 			authenticated: false
 		});
-		(authService.authenticate as any).mockResolvedValueOnce({
+		mockAuthService.authenticate.mockResolvedValueOnce({
 			success: true,
 			authUrl: 'https://withings.com/auth',
 			state: 'abc123'
@@ -79,7 +79,7 @@ describe('AuthSection Component', () => {
 	});
 
 	it('should show authenticating state with instructions', async () => {
-		(authService.checkStatus as any).mockResolvedValueOnce({
+		mockAuthService.checkStatus.mockResolvedValueOnce({
 			success: true,
 			authenticated: false
 		});
@@ -104,7 +104,7 @@ describe('AuthSection Component', () => {
 	});
 
 	it('should show authenticated state with logout button', async () => {
-		(authService.checkStatus as any).mockResolvedValueOnce({
+		mockAuthService.checkStatus.mockResolvedValueOnce({
 			success: true,
 			authenticated: false
 		});
@@ -132,11 +132,11 @@ describe('AuthSection Component', () => {
 	});
 
 	it('should call logout when logout button is clicked', async () => {
-		(authService.checkStatus as any).mockResolvedValueOnce({
+		mockAuthService.checkStatus.mockResolvedValueOnce({
 			success: true,
 			authenticated: false
 		});
-		(authService.logout as any).mockResolvedValueOnce({
+		mockAuthService.logout.mockResolvedValueOnce({
 			success: true,
 			message: 'Successfully logged out'
 		});
@@ -157,7 +157,7 @@ describe('AuthSection Component', () => {
 	});
 
 	it('should show error state', async () => {
-		(authService.checkStatus as any).mockResolvedValueOnce({
+		mockAuthService.checkStatus.mockResolvedValueOnce({
 			success: true,
 			authenticated: false
 		});
@@ -174,7 +174,7 @@ describe('AuthSection Component', () => {
 	});
 
 	it('should have correct button states for unauthenticated user', async () => {
-		(authService.checkStatus as any).mockResolvedValueOnce({
+		mockAuthService.checkStatus.mockResolvedValueOnce({
 			success: true,
 			authenticated: false
 		});
@@ -193,7 +193,7 @@ describe('AuthSection Component', () => {
 	});
 
 	it('should apply correct CSS classes for different states', async () => {
-		(authService.checkStatus as any).mockResolvedValueOnce({
+		mockAuthService.checkStatus.mockResolvedValueOnce({
 			success: true,
 			authenticated: false
 		});
@@ -216,7 +216,7 @@ describe('AuthSection Component', () => {
 
 	it('should handle service errors gracefully', async () => {
 		const mockError = new Error('Network error');
-		(authService.checkStatus as any).mockRejectedValueOnce(mockError);
+		mockAuthService.checkStatus.mockRejectedValueOnce(mockError);
 
 		// Suppress console errors for this test
 		const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -232,7 +232,7 @@ describe('AuthSection Component', () => {
 	});
 
 	it('should handle import data functionality', async () => {
-		(authService.checkStatus as any).mockResolvedValueOnce({
+		mockAuthService.checkStatus.mockResolvedValueOnce({
 			success: true,
 			authenticated: false
 		});
@@ -267,7 +267,7 @@ describe('AuthSection Component', () => {
 	});
 
 	it('should show Update Data button when existing data is available', async () => {
-		(authService.checkStatus as any).mockResolvedValueOnce({
+		mockAuthService.checkStatus.mockResolvedValueOnce({
 			success: true,
 			authenticated: false
 		});

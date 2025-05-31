@@ -20,7 +20,7 @@
 			await authService.checkStatus();
 			// Check if data exists for button text
 			await checkDataExists();
-		} catch (error) {
+		} catch (_error) {
 			// Error is already handled by the service, this is just to prevent unhandled rejections
 		}
 	});
@@ -29,8 +29,8 @@
 		try {
 			const response = await importClientService.hasExistingData();
 			hasExistingData = response;
-		} catch (error) {
-			console.warn('Error checking existing data:', error);
+		} catch (_error) {
+			console.warn('Error checking existing data:', _error);
 			hasExistingData = false;
 		}
 	}
@@ -38,7 +38,7 @@
 	async function handleAuthenticate() {
 		try {
 			await authService.authenticate();
-		} catch (error) {
+		} catch (_error) {
 			// Error is already handled by the service and stored in the auth store
 			// This catch block just prevents unhandled promise rejections
 		}

@@ -16,7 +16,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			);
 		}
 
-		const token = await exchangeCodeForToken(code, state);
+		const _token = await exchangeCodeForToken(code, state);
 
 		return json({
 			success: true,

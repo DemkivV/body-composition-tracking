@@ -29,7 +29,7 @@ const DEFAULT_CONFIG: AppConfig = {
 async function ensureDataDir(): Promise<void> {
 	try {
 		await fs.mkdir(DATA_DIR, { recursive: true });
-	} catch (error) {
+	} catch (_error) {
 		// Directory might already exist, that's fine
 	}
 }
@@ -52,7 +52,7 @@ async function loadConfig(): Promise<AppConfig> {
 				...config.withings
 			}
 		};
-	} catch (error) {
+	} catch (_error) {
 		// Config file doesn't exist or is invalid, return defaults
 		return DEFAULT_CONFIG;
 	}

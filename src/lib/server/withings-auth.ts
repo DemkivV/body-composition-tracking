@@ -52,7 +52,7 @@ async function loadToken(): Promise<WithingsToken | null> {
 		}
 
 		return token;
-	} catch (error) {
+	} catch (_error) {
 		// Token file doesn't exist or is invalid
 		return null;
 	}
@@ -68,7 +68,7 @@ async function saveToken(token: WithingsToken): Promise<void> {
 	// Set restrictive permissions (readable only by owner)
 	try {
 		await fs.chmod(tokenPath, 0o600);
-	} catch (error) {
+	} catch (_error) {
 		// chmod might not work on all systems, but that's okay
 	}
 }
@@ -80,7 +80,7 @@ async function clearToken(): Promise<void> {
 	try {
 		const tokenPath = getTokenFilePath();
 		await fs.unlink(tokenPath);
-	} catch (error) {
+	} catch (_error) {
 		// File might not exist, that's fine
 	}
 }
@@ -280,7 +280,7 @@ export async function getValidToken(): Promise<WithingsToken | null> {
 	if (isTokenExpired(token)) {
 		try {
 			return await refreshToken(token);
-		} catch (error) {
+		} catch (_error) {
 			// Refresh failed, remove invalid token
 			await clearToken();
 			return null;

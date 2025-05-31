@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Authentication Flow', () => {
 	test.beforeEach(async ({ page }) => {
-		// Mock the configuration check to show we have credentials configured
+		// Mock the configuration check to return configured=true
 		await page.route('/api/auth/configure', async (route) => {
 			await route.fulfill({
 				status: 200,
@@ -16,6 +16,27 @@ test.describe('Authentication Flow', () => {
 	});
 
 	test('should display the main page with correct elements', async ({ page }) => {
+		// Mock the auth status to return not authenticated initially
+		await page.route('/api/auth/status', async (route) => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					success: true,
+					authenticated: false
+				})
+			});
+		});
+
+		// Mock has existing data check - needed by AuthSection component
+		await page.route('/api/import/has-data', async (route) => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ hasData: false })
+			});
+		});
+
 		// Navigate to the page after setting up all mocks
 		await page.goto('/');
 
@@ -29,12 +50,12 @@ test.describe('Authentication Flow', () => {
 		await expect(page.getByRole('heading', { name: 'Body Composition Tracker' })).toBeVisible();
 
 		// Check tab navigation - these should be visible once configured
-		await expect(page.getByRole('button', { name: 'Data Import' })).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Raw Data' })).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Analysis' })).toBeVisible();
+		await expect(page.getByRole('tab', { name: 'Data Import' })).toBeVisible();
+		await expect(page.getByRole('tab', { name: 'Raw Data' })).toBeVisible();
+		await expect(page.getByRole('tab', { name: 'Analysis' })).toBeVisible();
 
 		// Check that Data Import tab is active by default
-		await expect(page.getByRole('button', { name: 'Data Import' })).toHaveClass(/active/);
+		await expect(page.getByRole('tab', { name: 'Data Import' })).toHaveClass(/active/);
 	});
 
 	test('should display authentication section in Data Import tab', async ({ page }) => {
@@ -94,21 +115,19 @@ test.describe('Authentication Flow', () => {
 		await page.waitForSelector('.tab-content', { timeout: 10000 });
 
 		// Click on Raw Data tab
-		await page.getByRole('button', { name: 'Raw Data' }).click();
+		await page.getByRole('tab', { name: 'Raw Data' }).click();
 		await expect(page.getByRole('heading', { name: 'Raw Data' })).toBeVisible();
-		await expect(
-			page.getByText('View your imported body composition data in table format.')
-		).toBeVisible();
+		await expect(page.locator('.data-container')).toBeVisible();
 
 		// Click on Analysis tab
-		await page.getByRole('button', { name: 'Analysis' }).click();
+		await page.getByRole('tab', { name: 'Analysis' }).click();
 		await expect(page.getByRole('heading', { name: 'Analysis & Visualization' })).toBeVisible();
 		await expect(
 			page.getByText('Interactive charts and trend analysis of your body composition data.')
 		).toBeVisible();
 
 		// Click back to Data Import tab
-		await page.getByRole('button', { name: 'Data Import' }).click();
+		await page.getByRole('tab', { name: 'Data Import' }).click();
 		await expect(page.getByRole('button', { name: 'Authenticate' })).toBeVisible();
 	});
 
@@ -149,7 +168,7 @@ test.describe('Authentication Flow', () => {
 
 		// Mock window.open to simulate popup failure
 		await page.addInitScript(() => {
-			window.open = function (url, target, features) {
+			window.open = function (_url, _target, _features) {
 				return null; // Simulate popup blocked
 			};
 		});
@@ -213,7 +232,7 @@ test.describe('Authentication Flow', () => {
 
 		// Mock window.open to simulate successful popup
 		await page.addInitScript(() => {
-			window.open = function (url, target, features) {
+			window.open = function (url, _target, _features) {
 				// Return a mock window that simulates being open then closed
 				const mockWindow = {
 					closed: false,
@@ -313,11 +332,11 @@ test.describe('Authentication Flow', () => {
 
 		// Check that the layout still works
 		await expect(page.getByRole('heading', { name: 'Body Composition Tracker' })).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Data Import' })).toBeVisible();
+		await expect(page.getByRole('tab', { name: 'Data Import' })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Authenticate' })).toBeVisible();
 
 		// Tab navigation should still work
-		await page.getByRole('button', { name: 'Raw Data' }).click();
+		await page.getByRole('tab', { name: 'Raw Data' }).click();
 		await expect(page.getByRole('heading', { name: 'Raw Data' })).toBeVisible();
 	});
 });

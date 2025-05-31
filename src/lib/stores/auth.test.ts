@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { get } from 'svelte/store';
-import { authStore, authActions, type AuthState } from './auth';
+import { authStore, authActions } from './auth.js';
 
 describe('Auth Store', () => {
 	beforeEach(() => {

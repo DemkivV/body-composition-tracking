@@ -45,7 +45,7 @@ export class WithingsSource {
 	 */
 	private async makeRequest(
 		action: string,
-		params: Record<string, any> = {}
+		params: Record<string, string | number> = {}
 	): Promise<WithingsApiResponse> {
 		const token = await this.getToken();
 

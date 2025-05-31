@@ -26,9 +26,12 @@
 </script>
 
 <nav class="tab-nav">
-	{#each tabs as tab}
+	{#each tabs as tab (tab.id)}
 		<button
+			role="tab"
 			data-tab={tab.id}
+			aria-selected={activeTab === tab.id}
+			aria-controls="tab-content"
 			class:active={activeTab === tab.id}
 			class:disabled={tab.disabled}
 			disabled={tab.disabled}

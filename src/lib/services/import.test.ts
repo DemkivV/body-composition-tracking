@@ -27,7 +27,12 @@ const mockFsReadFile = fs.readFile as MockedFunction<typeof fs.readFile>;
 
 describe('ImportService', () => {
 	let importService: ImportService;
-	let mockWithingsSource: any;
+	let mockWithingsSource: {
+		importIncrementalDataToCSV: MockedFunction<() => Promise<number>>;
+		importAllDataToCSV: MockedFunction<() => Promise<number>>;
+		transformToUnifiedFormat: MockedFunction<() => Promise<number>>;
+		getMostRecentTimestamp: MockedFunction<() => Promise<Date | null>>;
+	};
 
 	beforeEach(() => {
 		vi.clearAllMocks();
