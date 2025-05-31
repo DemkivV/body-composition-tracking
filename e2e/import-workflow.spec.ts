@@ -329,7 +329,7 @@ test.describe('Import Workflow', () => {
 		await page.locator('[data-tab="analysis"]').click();
 
 		// Check that analysis content is shown
-		await expect(page.locator('.chart-container').first()).toBeVisible();
+		await expect(page.locator('.unified-chart-container').first()).toBeVisible();
 		await expect(page.locator('.chart').first()).toBeVisible();
 
 		// Go back to data import tab

@@ -121,7 +121,7 @@ test.describe('Authentication Flow', () => {
 
 		// Click on Analysis tab
 		await page.getByRole('tab', { name: 'Analysis' }).click();
-		await expect(page.locator('.chart-container').first()).toBeVisible();
+		await expect(page.locator('.unified-chart-container').first()).toBeVisible();
 		await expect(page.locator('.chart').first()).toBeVisible();
 
 		// Click back to Data Import tab

@@ -35,12 +35,20 @@ test.describe('Raw Data Tab', () => {
 			});
 		});
 
-		// Mock raw data API with sample data
-		await page.route('/api/data/raw', async (route) => {
-			if (route.request().method() === 'GET') {
+		// IMPORTANT: Mock specific /api/data/raw route FIRST and MOST specific
+		await page.route('**/api/data/raw', async (route) => {
+			const method = route.request().method();
+			
+			if (method === 'GET') {
+				// Mock getting raw data - returns test data without touching CSV
 				await route.fulfill({
 					status: 200,
 					contentType: 'application/json',
+					headers: {
+						'Access-Control-Allow-Origin': '*',
+						'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+						'Access-Control-Allow-Headers': 'Content-Type'
+					},
 					body: JSON.stringify({
 						success: true,
 						data: [
@@ -52,7 +60,7 @@ test.describe('Raw Data Tab', () => {
 								'Bone mass (kg)': '3.1',
 								'Muscle mass (kg)': '32.8',
 								'Hydration (kg)': '24.4',
-								Comments: 'Morning measurement'
+								Comments: 'Test entry 1'
 							},
 							{
 								id: 2,
@@ -62,21 +70,62 @@ test.describe('Raw Data Tab', () => {
 								'Bone mass (kg)': '3.1',
 								'Muscle mass (kg)': '32.9',
 								'Hydration (kg)': '24.4',
-								Comments: ''
+								Comments: 'Test entry 2'
 							}
 						]
 					})
 				});
-			} else if (route.request().method() === 'PUT') {
+			} else if (method === 'POST') {
+				// Mock adding new row - simulates success without writing to CSV
+				const newId = Math.floor(Math.random() * 1000) + 100;
 				await route.fulfill({
 					status: 200,
 					contentType: 'application/json',
-					body: JSON.stringify({ success: true })
+					body: JSON.stringify({ 
+						success: true,
+						id: newId,
+						message: 'Row added successfully (test mode)'
+					})
+				});
+			} else if (method === 'PUT') {
+				// Mock updating existing row - simulates success without writing to CSV
+				await route.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					body: JSON.stringify({ 
+						success: true,
+						message: 'Row updated successfully (test mode)'
+					})
+				});
+			} else if (method === 'DELETE') {
+				// Mock deleting row - simulates success without writing to CSV
+				await route.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					body: JSON.stringify({ 
+						success: true,
+						message: 'Row deleted successfully (test mode)'
+					})
+				});
+			} else {
+				// For any other HTTP methods, return method not allowed
+				await route.fulfill({
+					status: 405,
+					contentType: 'application/json',
+					body: JSON.stringify({ 
+						success: false,
+						error: 'Method not allowed'
+					})
 				});
 			}
 		});
 
 		await page.goto('/');
+		
+		// Wait for the page to be configured and show the tab navigation
+		await page.waitForSelector('.tab-nav', { timeout: 10000 });
+		
+		// Ensure the default tab content is loaded
 		await page.waitForSelector('.tab-content', { timeout: 10000 });
 	});
 
@@ -84,8 +133,11 @@ test.describe('Raw Data Tab', () => {
 		// Click on Raw Data tab
 		await page.getByRole('tab', { name: 'Raw Data' }).click();
 
-		// Wait for the data container to load
-		await expect(page.locator('.data-container')).toBeVisible();
+		// Wait for the data container to load and ensure it's visible
+		await expect(page.locator('.data-container')).toBeVisible({ timeout: 10000 });
+		
+		// Wait for loading to complete
+		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 10000 });
 
 		// Check that the table is displayed
 		await expect(page.locator('.data-table')).toBeVisible();
@@ -99,7 +151,7 @@ test.describe('Raw Data Tab', () => {
 		await expect(page.locator('th:has-text("Hydration (kg)")')).toBeVisible();
 		await expect(page.locator('th:has-text("Comments")')).toBeVisible();
 
-		// Check that data rows are displayed
+		// Check that mock data rows are displayed (2 rows as per our mock)
 		await expect(page.locator('tbody tr')).toHaveCount(2);
 
 		// Check that the table has input fields (indicating it's interactive)
@@ -110,7 +162,8 @@ test.describe('Raw Data Tab', () => {
 
 	test('should show Add Row button and save status', async ({ page }) => {
 		await page.getByRole('tab', { name: 'Raw Data' }).click();
-		await expect(page.locator('.data-container')).toBeVisible();
+		await expect(page.locator('.data-container')).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 10000 });
 
 		// Check Add Row button is present
 		await expect(page.getByRole('button', { name: 'Add Row' })).toBeVisible();
@@ -121,7 +174,8 @@ test.describe('Raw Data Tab', () => {
 
 	test('should add new row when Add Row button is clicked', async ({ page }) => {
 		await page.getByRole('tab', { name: 'Raw Data' }).click();
-		await expect(page.locator('.data-container')).toBeVisible();
+		await expect(page.locator('.data-container')).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 10000 });
 
 		// Count initial rows
 		const initialRowCount = await page.locator('tbody tr').count();
@@ -149,7 +203,8 @@ test.describe('Raw Data Tab', () => {
 
 	test('should allow editing cell values', async ({ page }) => {
 		await page.getByRole('tab', { name: 'Raw Data' }).click();
-		await expect(page.locator('.data-container')).toBeVisible();
+		await expect(page.locator('.data-container')).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 10000 });
 
 		// Edit weight in first row
 		const weightInput = page.locator('tbody tr').first().locator('input[type="number"]').first();
@@ -167,7 +222,8 @@ test.describe('Raw Data Tab', () => {
 
 	test('should allow deleting rows', async ({ page }) => {
 		await page.getByRole('tab', { name: 'Raw Data' }).click();
-		await expect(page.locator('.data-container')).toBeVisible();
+		await expect(page.locator('.data-container')).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 10000 });
 
 		// Count initial rows
 		const initialRowCount = await page.locator('tbody tr').count();
@@ -191,15 +247,38 @@ test.describe('Raw Data Tab', () => {
 	});
 
 	test('should handle empty state correctly', async ({ page }) => {
-		// Mock empty data response
+		// Mock empty data response - ensures no production data is affected
 		await page.route('/api/data/raw', async (route) => {
-			if (route.request().method() === 'GET') {
+			const method = route.request().method();
+			
+			if (method === 'GET') {
 				await route.fulfill({
 					status: 200,
 					contentType: 'application/json',
 					body: JSON.stringify({
 						success: true,
 						data: []
+					})
+				});
+			} else if (method === 'POST') {
+				// Mock adding row even in empty state
+				await route.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					body: JSON.stringify({ 
+						success: true,
+						id: 1,
+						message: 'First row added successfully (test mode)'
+					})
+				});
+			} else {
+				// Mock other operations
+				await route.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					body: JSON.stringify({ 
+						success: true,
+						message: 'Operation completed (test mode)'
 					})
 				});
 			}
@@ -216,9 +295,11 @@ test.describe('Raw Data Tab', () => {
 	});
 
 	test('should handle loading state', async ({ page }) => {
-		// Mock slow loading response
+		// Mock slow loading response - ensures no production data is affected
 		await page.route('/api/data/raw', async (route) => {
-			if (route.request().method() === 'GET') {
+			const method = route.request().method();
+			
+			if (method === 'GET') {
 				// Delay the response to show loading state
 				await new Promise((resolve) => setTimeout(resolve, 1000));
 				await route.fulfill({
@@ -227,6 +308,16 @@ test.describe('Raw Data Tab', () => {
 					body: JSON.stringify({
 						success: true,
 						data: []
+					})
+				});
+			} else {
+				// Mock other operations without delay
+				await route.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					body: JSON.stringify({ 
+						success: true,
+						message: 'Operation completed (test mode)'
 					})
 				});
 			}
@@ -245,15 +336,27 @@ test.describe('Raw Data Tab', () => {
 	});
 
 	test('should handle error state', async ({ page }) => {
-		// Mock error response
+		// Mock error response - ensures no production data is affected
 		await page.route('/api/data/raw', async (route) => {
-			if (route.request().method() === 'GET') {
+			const method = route.request().method();
+			
+			if (method === 'GET') {
 				await route.fulfill({
 					status: 500,
 					contentType: 'application/json',
 					body: JSON.stringify({
 						success: false,
 						error: 'Database connection failed'
+					})
+				});
+			} else {
+				// Even in error test, mock other operations to prevent data access
+				await route.fulfill({
+					status: 500,
+					contentType: 'application/json',
+					body: JSON.stringify({ 
+						success: false,
+						error: 'Operation failed (test mode)'
 					})
 				});
 			}
@@ -271,7 +374,8 @@ test.describe('Raw Data Tab', () => {
 
 	test('should have proper accessibility attributes', async ({ page }) => {
 		await page.getByRole('tab', { name: 'Raw Data' }).click();
-		await expect(page.locator('.data-container')).toBeVisible();
+		await expect(page.locator('.data-container')).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 10000 });
 
 		// Check table structure is present (HTML tables have implicit table role)
 		await expect(page.locator('.data-table')).toBeVisible();
@@ -295,7 +399,8 @@ test.describe('Raw Data Tab', () => {
 		await page.setViewportSize({ width: 375, height: 667 });
 
 		await page.getByRole('tab', { name: 'Raw Data' }).click();
-		await expect(page.locator('.data-container')).toBeVisible();
+		await expect(page.locator('.data-container')).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 10000 });
 
 		// Check that the table is still accessible on mobile
 		await expect(page.locator('.data-table-container')).toBeVisible();

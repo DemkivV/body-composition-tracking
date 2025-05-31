@@ -24,7 +24,9 @@ vi.mock('echarts/charts', () => ({
 vi.mock('echarts/components', () => ({
 	GridComponent: Symbol('GridComponent'),
 	TitleComponent: Symbol('TitleComponent'),
-	TooltipComponent: Symbol('TooltipComponent')
+	TooltipComponent: Symbol('TooltipComponent'),
+	LegendComponent: Symbol('LegendComponent'),
+	DataZoomComponent: Symbol('DataZoomComponent')
 }));
 vi.mock('echarts/renderers', () => ({
 	CanvasRenderer: Symbol('CanvasRenderer')
@@ -85,15 +87,20 @@ test('AnalysisSection renders charts when data is available', async () => {
 
 	const { container } = render(AnalysisSection);
 
-	// Wait for data to load and charts to initialize
+	// Wait for data to load and the unified chart to initialize
 	await waitFor(
 		() => {
-			const chartContainers = container.querySelectorAll('.chart-container');
-			expect(chartContainers).toHaveLength(2);
+			// Check for the unified chart container
+			const unifiedChartContainer = container.querySelector('.unified-chart-container');
+			expect(unifiedChartContainer).toBeInTheDocument();
 		},
 		{ timeout: 3000 }
 	);
 
-	const charts = container.querySelectorAll('.chart');
-	expect(charts).toHaveLength(2);
+	// Check that the chart element is present
+	const chart = container.querySelector('.chart');
+	expect(chart).toBeInTheDocument();
+	
+	// Verify the loading state is no longer visible
+	expect(container.querySelector('.loading-section')).not.toBeInTheDocument();
 });
