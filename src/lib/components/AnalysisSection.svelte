@@ -1,16 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { BodyCompositionRow, DataApiResponse } from '$lib/types/data';
-	import { processBodyCompositionData, type ProcessedDataPoint } from '$lib/utils/dataProcessing';
+	import { processBodyCompositionData } from '$lib/utils/dataProcessing';
 
 	let data: BodyCompositionRow[] = [];
 	let loading = true;
 	let error = '';
-	let weightChartContainer: HTMLDivElement;
-	let bodyFatChartContainer: HTMLDivElement;
-	let weightChart: any;
-	let bodyFatChart: any;
-	let echartsLib: any;
+	let unifiedChartContainer: HTMLDivElement;
+	let unifiedChart: unknown;
+	let echartsLib: unknown;
 
 	// Reactive processed data with outlier removal and weighted averaging enabled
 	$: processedData = processBodyCompositionData(data, {
@@ -29,28 +27,26 @@
 
 		// Handle window resize
 		const handleResize = () => {
-			weightChart?.resize();
-			bodyFatChart?.resize();
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(unifiedChart as any)?.resize();
 		};
 		window.addEventListener('resize', handleResize);
 
 		// Return cleanup function
 		return () => {
 			window.removeEventListener('resize', handleResize);
-			weightChart?.dispose();
-			bodyFatChart?.dispose();
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(unifiedChart as any)?.dispose();
 		};
 	});
 
 	async function initializeAsync() {
 		try {
-			// Dynamic import with tree-shaking - only load what we need for line charts
-			// This reduces bundle size from 1MB+ to ~250KB by importing specific ECharts modules
-			// instead of the entire library. We only import LineChart, basic components, and Canvas renderer.
+			// Dynamic import with tree-shaking - load what we need for line charts and dataZoom
 			const [
 				echarts,
 				{ LineChart },
-				{ GridComponent, TitleComponent, TooltipComponent },
+				{ GridComponent, TitleComponent, TooltipComponent, LegendComponent, DataZoomComponent },
 				{ CanvasRenderer }
 			] = await Promise.all([
 				import('echarts/core'),
@@ -59,20 +55,22 @@
 				import('echarts/renderers')
 			]);
 
-			// Register only the components we need
+			// Register the components we need
 			echarts.use([
 				LineChart,
 				GridComponent,
 				TitleComponent,
 				TooltipComponent,
+				LegendComponent,
+				DataZoomComponent,
 				CanvasRenderer
 			]);
 
 			echartsLib = echarts;
 
-			// Load data and initialize charts directly
+			// Load data and initialize chart
 			await loadData();
-			initializeCharts();
+			initializeChart();
 		} catch (err) {
 			console.error('Failed to initialize:', err);
 			error = 'Failed to load charting library';
@@ -80,9 +78,9 @@
 		}
 	}
 
-	// Watch for data changes and update charts
-	$: if (weightChart && bodyFatChart && processedData) {
-		updateCharts();
+	// Watch for data changes and update chart
+	$: if (unifiedChart && processedData) {
+		updateChart();
 	}
 
 	async function loadData() {
@@ -104,18 +102,18 @@
 		}
 	}
 
-	function initializeCharts() {
-		if (!weightChartContainer || !bodyFatChartContainer || !echartsLib) return;
+	function initializeChart() {
+		if (!unifiedChartContainer || !echartsLib) return;
 
-		// Initialize charts
-		weightChart = echartsLib.init(weightChartContainer);
-		bodyFatChart = echartsLib.init(bodyFatChartContainer);
+		// Initialize unified chart
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		unifiedChart = (echartsLib as any).init(unifiedChartContainer);
 
-		updateCharts();
+		updateChart();
 	}
 
-	function updateCharts() {
-		if (!weightChart || !bodyFatChart) return;
+	function updateChart() {
+		if (!unifiedChart) return;
 
 		if (processedData.length === 0) {
 			// Show empty state
@@ -131,35 +129,94 @@
 				},
 				backgroundColor: 'transparent'
 			};
-			weightChart.setOption(emptyOption);
-			bodyFatChart.setOption(emptyOption);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(unifiedChart as any).setOption(emptyOption);
 			return;
 		}
 
-		// Calculate Y-axis range for weight chart
-		const weightValues = processedData.map((d) => d.weight).filter(w => w !== null) as number[];
+		// Prepare data for both metrics
+		const dates = processedData.map((d) => d.date);
+		const weightData = processedData.map((d) => d.weight);
+		const bodyFatData = processedData.map((d) => d.bodyFatPercentage);
+
+		// Calculate dynamic ranges for both y-axes
+		const weightValues = weightData.filter((w) => w !== null) as number[];
+		const bodyFatValues = bodyFatData.filter((bf) => bf !== null) as number[];
+
+		// Weight axis range
 		const minWeight = Math.min(...weightValues);
 		const maxWeight = Math.max(...weightValues);
-		const weightPadding = (maxWeight - minWeight) * 0.1; // 10% padding
+		const weightPadding = (maxWeight - minWeight) * 0.05; // 5% padding
 		const weightMin = Math.max(0, minWeight - weightPadding);
 		const weightMax = maxWeight + weightPadding;
 
-		// Prepare weight chart
-		const weightOption = {
+		// Body fat axis range
+		const minBodyFat = Math.min(...bodyFatValues);
+		const maxBodyFat = Math.max(...bodyFatValues);
+		const bodyFatPadding = (maxBodyFat - minBodyFat) * 0.05; // 5% padding
+		const bodyFatMin = Math.max(0, minBodyFat - bodyFatPadding);
+		const bodyFatMax = maxBodyFat + bodyFatPadding;
+
+		// Calculate initial 28-day window (show the most recent 28 days)
+		const totalDays = dates.length;
+		const windowSize = Math.min(28, totalDays);
+		
+		// If we have more than 28 days of data, show the last 28 days
+		// Otherwise, show all available data
+		let startIndex = 0;
+		let endIndex = totalDays - 1;
+		
+		if (totalDays > windowSize) {
+			startIndex = totalDays - windowSize;
+		}
+		
+		// Convert to percentages for ECharts dataZoom
+		const startPercent = totalDays > 1 ? (startIndex / (totalDays - 1)) * 100 : 0;
+		const endPercent = totalDays > 1 ? (endIndex / (totalDays - 1)) * 100 : 100;
+
+		const option = {
 			title: {
-				text: 'Body Weight',
+				text: 'Body Composition Analysis',
 				left: 'center',
 				textStyle: {
 					color: '#e2e8f0',
-					fontSize: 18,
+					fontSize: 20,
 					fontWeight: 'bold'
+				},
+				top: 10
+			},
+			legend: {
+				data: ['Body Weight', 'Body Fat %'],
+				top: 50,
+				textStyle: {
+					color: '#e2e8f0'
 				}
 			},
 			tooltip: {
 				trigger: 'axis',
+				axisPointer: {
+					type: 'cross',
+					crossStyle: {
+						color: '#999'
+					}
+				},
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				formatter: function (params: any) {
-					const data = params[0];
-					return `Date: ${data.axisValue}<br/>Weight: ${data.value.toFixed(2)} kg`;
+					if (!params || params.length === 0) return '';
+
+					const date = params[0].axisValue;
+					let content = `Date: ${date}<br/>`;
+
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					params.forEach((param: any) => {
+						if (param.seriesName === 'Body Weight' && param.value !== null) {
+							content += `${param.seriesName}: ${param.value.toFixed(2)} kg<br/>`;
+						} else if (param.seriesName === 'Body Fat %' && param.value !== null) {
+							content += `${param.seriesName}: ${param.value.toFixed(1)}%<br/>`;
+						}
+					});
+
+					return content;
 				},
 				backgroundColor: 'rgba(30, 41, 59, 0.9)',
 				borderColor: 'rgba(148, 163, 184, 0.2)',
@@ -167,55 +224,163 @@
 					color: '#e2e8f0'
 				}
 			},
-			grid: {
-				left: '3%',
-				right: '4%',
-				bottom: '3%',
-				containLabel: true
-			},
-			xAxis: {
-				type: 'category',
-				data: processedData.map((d) => d.date),
-				axisLabel: {
-					rotate: 45,
-					color: '#94a3b8'
+			grid: [
+				{
+					left: '3%',
+					right: '4%',
+					top: 100,
+					height: '50%'
 				},
-				axisLine: {
-					lineStyle: {
-						color: '#475569'
+				{
+					left: '3%',
+					right: '4%',
+					top: '75%',
+					height: '15%'
+				}
+			],
+			xAxis: [
+				{
+					type: 'category',
+					boundaryGap: false,
+					data: dates,
+					axisLabel: {
+						rotate: 45,
+						color: '#94a3b8'
+					},
+					axisLine: {
+						lineStyle: {
+							color: '#475569'
+						}
+					},
+					gridIndex: 0
+				},
+				{
+					type: 'category',
+					boundaryGap: false,
+					data: dates,
+					axisLabel: {
+						show: false
+					},
+					axisLine: {
+						lineStyle: {
+							color: '#475569'
+						}
+					},
+					gridIndex: 1
+				}
+			],
+			yAxis: [
+				{
+					type: 'value',
+					name: 'Weight (kg)',
+					position: 'left',
+					min: weightMin,
+					max: weightMax,
+					axisLabel: {
+						formatter: '{value} kg',
+						color: '#3b82f6'
+					},
+					nameTextStyle: {
+						color: '#3b82f6'
+					},
+					axisLine: {
+						lineStyle: {
+							color: '#3b82f6'
+						}
+					},
+					splitLine: {
+						lineStyle: {
+							color: '#334155'
+						}
+					},
+					gridIndex: 0
+				},
+				{
+					type: 'value',
+					name: 'Body Fat (%)',
+					position: 'right',
+					min: bodyFatMin,
+					max: bodyFatMax,
+					axisLabel: {
+						formatter: '{value}%',
+						color: '#ef4444'
+					},
+					nameTextStyle: {
+						color: '#ef4444'
+					},
+					axisLine: {
+						lineStyle: {
+							color: '#ef4444'
+						}
+					},
+					splitLine: {
+						show: false
+					},
+					gridIndex: 0
+				},
+				{
+					type: 'value',
+					gridIndex: 1,
+					axisLabel: {
+						show: false
+					},
+					axisLine: {
+						show: false
+					},
+					axisTick: {
+						show: false
+					},
+					splitLine: {
+						show: false
 					}
 				}
-			},
-			yAxis: {
-				type: 'value',
-				name: 'Weight (kg)',
-				min: weightMin,
-				max: weightMax,
-				axisLabel: {
-					formatter: '{value} kg',
-					color: '#94a3b8'
+			],
+			dataZoom: [
+				{
+					type: 'inside',
+					xAxisIndex: 0,
+					start: startPercent,
+					end: endPercent,
+					minSpan: 5, // Minimum 5% of data (roughly a week for monthly data)
+					maxSpan: 50 // Maximum 50% of data
 				},
-				nameTextStyle: {
-					color: '#94a3b8'
-				},
-				axisLine: {
-					lineStyle: {
-						color: '#475569'
-					}
-				},
-				splitLine: {
-					lineStyle: {
-						color: '#334155'
+				{
+					type: 'slider',
+					xAxisIndex: [0, 1],
+					start: startPercent,
+					end: endPercent,
+					height: 60,
+					bottom: 20,
+					brushSelect: true,
+					brushStyle: {
+						color: 'rgba(59, 130, 246, 0.2)',
+						borderColor: 'rgba(59, 130, 246, 0.5)',
+						borderWidth: 1
+					},
+					textStyle: {
+						color: '#94a3b8'
+					},
+					dataBackground: {
+						lineStyle: {
+							color: '#475569'
+						},
+						areaStyle: {
+							color: 'rgba(59, 130, 246, 0.1)'
+						}
 					}
 				}
-			},
+			],
 			backgroundColor: 'transparent',
 			series: [
 				{
-					name: 'Weight',
+					name: 'Body Weight',
 					type: 'line',
-					data: processedData.map((d) => d.weight),
+					xAxisIndex: 0,
+					yAxisIndex: 0,
+					data: weightData,
 					smooth: true,
+					symbol: 'circle',
+					symbolSize: 4,
 					lineStyle: {
 						color: '#3b82f6',
 						width: 3
@@ -233,11 +398,11 @@
 							colorStops: [
 								{
 									offset: 0,
-									color: 'rgba(59, 130, 246, 0.3)'
+									color: 'rgba(59, 130, 246, 0.2)'
 								},
 								{
 									offset: 1,
-									color: 'rgba(59, 130, 246, 0.1)'
+									color: 'rgba(59, 130, 246, 0.05)'
 								}
 							]
 						}
@@ -245,98 +410,16 @@
 					emphasis: {
 						focus: 'series'
 					}
-				}
-			]
-		};
-
-		// Prepare body fat chart (only include data points where we have body fat percentage)
-		const bodyFatData = processedData.filter((d) => d.bodyFatPercentage !== null);
-
-		// Calculate Y-axis range for body fat chart
-		const bodyFatValues = bodyFatData.map((d) => d.bodyFatPercentage).filter(bf => bf !== null) as number[];
-		let bodyFatMin = 0;
-		let bodyFatMax = 50;
-		
-		if (bodyFatValues.length > 0) {
-			const minBodyFat = Math.min(...bodyFatValues);
-			const maxBodyFat = Math.max(...bodyFatValues);
-			const bodyFatPadding = (maxBodyFat - minBodyFat) * 0.1; // 10% padding
-			bodyFatMin = Math.max(0, minBodyFat - bodyFatPadding);
-			bodyFatMax = maxBodyFat + bodyFatPadding;
-		}
-
-		const bodyFatOption = {
-			title: {
-				text: 'Body Fat Percentage',
-				left: 'center',
-				textStyle: {
-					color: '#e2e8f0',
-					fontSize: 18,
-					fontWeight: 'bold'
-				}
-			},
-			tooltip: {
-				trigger: 'axis',
-				formatter: function (params: any) {
-					const data = params[0];
-					if (!data) return '';
-					return `Date: ${data.axisValue}<br/>Body Fat: ${data.value.toFixed(1)}%`;
 				},
-				backgroundColor: 'rgba(30, 41, 59, 0.9)',
-				borderColor: 'rgba(148, 163, 184, 0.2)',
-				textStyle: {
-					color: '#e2e8f0'
-				}
-			},
-			grid: {
-				left: '3%',
-				right: '4%',
-				bottom: '3%',
-				containLabel: true
-			},
-			xAxis: {
-				type: 'category',
-				data: bodyFatData.map((d) => d.date),
-				axisLabel: {
-					rotate: 45,
-					color: '#94a3b8'
-				},
-				axisLine: {
-					lineStyle: {
-						color: '#475569'
-					}
-				}
-			},
-			yAxis: {
-				type: 'value',
-				name: 'Body Fat (%)',
-				min: bodyFatMin,
-				max: bodyFatMax,
-				axisLabel: {
-					formatter: '{value}%',
-					color: '#94a3b8'
-				},
-				nameTextStyle: {
-					color: '#94a3b8'
-				},
-				axisLine: {
-					lineStyle: {
-						color: '#475569'
-					}
-				},
-				splitLine: {
-					lineStyle: {
-						color: '#334155'
-					}
-				}
-			},
-			backgroundColor: 'transparent',
-			series: [
 				{
 					name: 'Body Fat %',
 					type: 'line',
-					data: bodyFatData.map((d) => d.bodyFatPercentage),
+					xAxisIndex: 0,
+					yAxisIndex: 1,
+					data: bodyFatData,
 					smooth: true,
+					symbol: 'circle',
+					symbolSize: 4,
 					lineStyle: {
 						color: '#ef4444',
 						width: 3
@@ -354,11 +437,11 @@
 							colorStops: [
 								{
 									offset: 0,
-									color: 'rgba(239, 68, 68, 0.3)'
+									color: 'rgba(239, 68, 68, 0.2)'
 								},
 								{
 									offset: 1,
-									color: 'rgba(239, 68, 68, 0.1)'
+									color: 'rgba(239, 68, 68, 0.05)'
 								}
 							]
 						}
@@ -366,12 +449,52 @@
 					emphasis: {
 						focus: 'series'
 					}
+				},
+				{
+					name: 'Weight Overview',
+					type: 'line',
+					xAxisIndex: 1,
+					yAxisIndex: 2,
+					data: weightData,
+					smooth: true,
+					symbol: 'none',
+					lineStyle: {
+						color: '#3b82f6',
+						width: 1,
+						opacity: 0.5
+					},
+					areaStyle: {
+						color: 'rgba(59, 130, 246, 0.1)'
+					},
+					silent: true,
+					animation: false
+				},
+				{
+					name: 'Body Fat Overview',
+					type: 'line',
+					xAxisIndex: 1,
+					yAxisIndex: 2,
+					data: bodyFatData.map((value, index) => {
+						// Normalize body fat data to the same scale as weight for overview
+						if (value === null) return null;
+						const normalizedValue = ((value - bodyFatMin) / (bodyFatMax - bodyFatMin)) * (weightMax - weightMin) + weightMin;
+						return normalizedValue;
+					}),
+					smooth: true,
+					symbol: 'none',
+					lineStyle: {
+						color: '#ef4444',
+						width: 1,
+						opacity: 0.3
+					},
+					silent: true,
+					animation: false
 				}
 			]
 		};
 
-		weightChart.setOption(weightOption);
-		bodyFatChart.setOption(bodyFatOption);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(unifiedChart as any).setOption(option, true);
 	}
 </script>
 
@@ -387,14 +510,8 @@
 			<button class="btn secondary" on:click={loadData}>Retry</button>
 		</div>
 	{:else}
-		<div class="charts-grid">
-			<div class="chart-container">
-				<div class="chart" bind:this={weightChartContainer}></div>
-			</div>
-
-			<div class="chart-container">
-				<div class="chart" bind:this={bodyFatChartContainer}></div>
-			</div>
+		<div class="unified-chart-container">
+			<div class="chart" bind:this={unifiedChartContainer}></div>
 		</div>
 	{/if}
 </div>
@@ -402,7 +519,7 @@
 <style>
 	.analysis-container {
 		padding: 0;
-		max-width: 1200px;
+		max-width: 1400px;
 		margin: 0 auto;
 	}
 
@@ -440,30 +557,19 @@
 		margin-bottom: 1rem;
 	}
 
-	.charts-grid {
-		display: grid;
-		grid-template-columns: 1fr;
-		gap: 2rem;
-	}
-
-	@media (min-width: 1024px) {
-		.charts-grid {
-			grid-template-columns: 1fr 1fr;
-		}
-	}
-
-	.chart-container {
+	.unified-chart-container {
 		background: var(--gradient-surface);
 		backdrop-filter: blur(12px);
 		border: 1px solid rgb(148 163 184 / 0.1);
 		border-radius: 1rem;
 		box-shadow: 0 12px 40px rgb(0 0 0 / 0.3);
 		padding: 1rem;
+		margin: 1rem 0;
 	}
 
 	.chart {
 		width: 100%;
-		height: 400px;
+		height: 600px;
 	}
 
 	.btn {

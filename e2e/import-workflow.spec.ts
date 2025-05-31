@@ -186,7 +186,7 @@ test.describe('Import Workflow', () => {
 
 		// Check importing state - the button might be disabled briefly or change to "Update Data"
 		// Since the mock completes quickly, we'll check for the end result
-		
+
 		// Wait for import to complete
 		await expect(page.locator('.feedback.authenticated')).toBeVisible({ timeout: 10000 });
 		await expect(page.locator('.feedback')).toContainText(

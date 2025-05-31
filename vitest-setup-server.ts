@@ -6,4 +6,4 @@ const mockConsoleError = vi.fn();
 global.console.error = mockConsoleError;
 
 // Export the mock so individual tests can access it if needed
-export { mockConsoleError }; 
+export { mockConsoleError };

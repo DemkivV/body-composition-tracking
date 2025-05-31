@@ -15,7 +15,7 @@ export interface DataProcessingOptions {
 	removeOutliers?: boolean;
 	outlierDetectionWindow?: number; // window size for local outlier detection (default: 15)
 	outlierThreshold?: number; // modified z-score threshold (default: 3.5)
-	
+
 	// Weighted average settings
 	useWeightedAverage?: boolean;
 	weightedAverageWindow?: number; // days (default: 4)
@@ -28,17 +28,17 @@ export interface DataProcessingOptions {
 
 /**
  * Processes raw body composition data into a format suitable for charting
- * 
+ *
  * This function applies a two-step preprocessing pipeline:
  * 1. Outlier Detection: Uses Modified Z-Score with local windowing to identify and remove
  *    unrealistic measurements (e.g., 3.5% body fat) that would skew the weighted averages
  * 2. Weighted Averaging: Computes rolling weighted averages to smooth the data and reduce
  *    noise while preserving trends
- * 
+ *
  * The preprocessing is designed to handle long time series data (months/years) efficiently
  * and avoid issues with global statistics that don't account for natural body composition
  * changes over time.
- * 
+ *
  * Performance: Optimized to process ~250 data points in under 10ms
  */
 export function processBodyCompositionData(
@@ -108,7 +108,11 @@ export function processBodyCompositionData(
 	}
 
 	// Step 2: Apply weighted averages if enabled
-	if (useWeightedAverage && weightedAverageWindow > 1 && processedData.length >= weightedAverageWindow) {
+	if (
+		useWeightedAverage &&
+		weightedAverageWindow > 1 &&
+		processedData.length >= weightedAverageWindow
+	) {
 		processedData = calculateWeightedAverages(processedData, weightedAverageWindow);
 	}
 
@@ -128,23 +132,33 @@ function removeOutliersFromData(
 
 	for (let i = 0; i < data.length; i++) {
 		const current = data[i];
-		
+
 		// Define window boundaries (windowSize/2 before and after current point)
 		const halfWindow = Math.floor(windowSize / 2);
 		const windowStart = Math.max(0, i - halfWindow);
 		const windowEnd = Math.min(data.length - 1, i + halfWindow);
-		
+
 		// Extract window data for each metric
 		const windowData = data.slice(windowStart, windowEnd + 1);
-		
+
 		// Check if current point is an outlier for any metric
-		const isWeightOutlier = current.weight !== null 
-			? isValueOutlier(current.weight, windowData.map(d => d.weight).filter(v => v !== null) as number[], threshold)
-			: false;
-			
-		const isBodyFatOutlier = current.bodyFatPercentage !== null
-			? isValueOutlier(current.bodyFatPercentage, windowData.map(d => d.bodyFatPercentage).filter(v => v !== null) as number[], threshold)
-			: false;
+		const isWeightOutlier =
+			current.weight !== null
+				? isValueOutlier(
+						current.weight,
+						windowData.map((d) => d.weight).filter((v) => v !== null) as number[],
+						threshold
+					)
+				: false;
+
+		const isBodyFatOutlier =
+			current.bodyFatPercentage !== null
+				? isValueOutlier(
+						current.bodyFatPercentage,
+						windowData.map((d) => d.bodyFatPercentage).filter((v) => v !== null) as number[],
+						threshold
+					)
+				: false;
 
 		// Keep the point if it's not an outlier in any key metric
 		// We're particularly concerned about body fat outliers as mentioned in the requirements
@@ -162,21 +176,21 @@ function removeOutliersFromData(
  */
 function isValueOutlier(value: number, windowValues: number[], threshold: number): boolean {
 	if (windowValues.length < 3) return false; // Need at least 3 points for meaningful statistics
-	
+
 	// Calculate median
 	const sortedValues = [...windowValues].sort((a, b) => a - b);
 	const median = getMedian(sortedValues);
-	
+
 	// Calculate MAD (Median Absolute Deviation)
-	const deviations = sortedValues.map(v => Math.abs(v - median));
+	const deviations = sortedValues.map((v) => Math.abs(v - median));
 	const mad = getMedian(deviations.sort((a, b) => a - b));
-	
+
 	// Avoid division by zero
 	if (mad === 0) return false;
-	
+
 	// Calculate Modified Z-Score
-	const modifiedZScore = 0.6745 * (value - median) / mad;
-	
+	const modifiedZScore = (0.6745 * (value - median)) / mad;
+
 	return Math.abs(modifiedZScore) > threshold;
 }
 
@@ -201,26 +215,44 @@ function calculateWeightedAverages(
 	windowSize: number
 ): ProcessedDataPoint[] {
 	const result: ProcessedDataPoint[] = [];
-	
+
 	// Skip the first (windowSize - 1) points as we can't calculate weighted average for them
 	for (let i = windowSize - 1; i < data.length; i++) {
 		const windowData = data.slice(i - windowSize + 1, i + 1);
 		const currentDate = data[i].date;
-		
+
 		// Calculate weighted averages for each metric
 		const weightedPoint: ProcessedDataPoint = {
 			date: currentDate,
-			weight: calculateWeightedMetricAverage(windowData.map(d => d.weight), windowSize),
-			fatMass: calculateWeightedMetricAverage(windowData.map(d => d.fatMass), windowSize),
-			bodyFatPercentage: calculateWeightedMetricAverage(windowData.map(d => d.bodyFatPercentage), windowSize),
-			boneMass: calculateWeightedMetricAverage(windowData.map(d => d.boneMass), windowSize),
-			muscleMass: calculateWeightedMetricAverage(windowData.map(d => d.muscleMass), windowSize),
-			hydration: calculateWeightedMetricAverage(windowData.map(d => d.hydration), windowSize)
+			weight: calculateWeightedMetricAverage(
+				windowData.map((d) => d.weight),
+				windowSize
+			),
+			fatMass: calculateWeightedMetricAverage(
+				windowData.map((d) => d.fatMass),
+				windowSize
+			),
+			bodyFatPercentage: calculateWeightedMetricAverage(
+				windowData.map((d) => d.bodyFatPercentage),
+				windowSize
+			),
+			boneMass: calculateWeightedMetricAverage(
+				windowData.map((d) => d.boneMass),
+				windowSize
+			),
+			muscleMass: calculateWeightedMetricAverage(
+				windowData.map((d) => d.muscleMass),
+				windowSize
+			),
+			hydration: calculateWeightedMetricAverage(
+				windowData.map((d) => d.hydration),
+				windowSize
+			)
 		};
-		
+
 		result.push(weightedPoint);
 	}
-	
+
 	return result;
 }
 
@@ -228,10 +260,13 @@ function calculateWeightedAverages(
  * Calculates weighted average for a single metric
  * Uses linear weighting where the most recent value has the highest weight
  */
-function calculateWeightedMetricAverage(values: (number | null)[], windowSize: number): number | null {
+function calculateWeightedMetricAverage(
+	values: (number | null)[],
+	windowSize: number
+): number | null {
 	// Filter out null values while keeping track of their positions
 	const validEntries: { value: number; weight: number }[] = [];
-	
+
 	for (let i = 0; i < values.length; i++) {
 		if (values[i] !== null) {
 			// Linear weight: more recent values get higher weights
@@ -240,13 +275,13 @@ function calculateWeightedMetricAverage(values: (number | null)[], windowSize: n
 			validEntries.push({ value: values[i]!, weight });
 		}
 	}
-	
+
 	if (validEntries.length === 0) return null;
-	
+
 	// Calculate weighted average
-	const weightedSum = validEntries.reduce((sum, entry) => sum + (entry.value * entry.weight), 0);
+	const weightedSum = validEntries.reduce((sum, entry) => sum + entry.value * entry.weight, 0);
 	const totalWeight = validEntries.reduce((sum, entry) => sum + entry.weight, 0);
-	
+
 	return weightedSum / totalWeight;
 }
 
@@ -254,15 +289,15 @@ function calculateWeightedMetricAverage(values: (number | null)[], windowSize: n
  * Applies weighted averages to the processed data
  * This is a placeholder for future implementation
  */
-function applyWeightedAverages(
+function _applyWeightedAverages(
 	data: ProcessedDataPoint[],
-	windowSize: number
+	_windowSize: number
 ): ProcessedDataPoint[] {
 	// TODO: Implement weighted average calculation
 	// For now, return data as-is
 	// Future implementation will calculate rolling weighted averages
 	// based on the specified window size
-	console.log(`Weighted averages (${windowSize}-day window) not yet implemented`);
+	console.log(`Weighted averages not yet implemented`);
 	return data;
 }
 

@@ -58,7 +58,7 @@ test('AnalysisSection handles API error gracefully', async () => {
 	(fetch as any).mockRejectedValue(new Error('Network error'));
 
 	const { findByText } = render(AnalysisSection);
-	
+
 	// Wait for the error state to be rendered - the error message should be 'Failed to fetch data'
 	expect(await findByText('Failed to fetch data')).toBeInTheDocument();
 });
@@ -84,13 +84,16 @@ test('AnalysisSection renders charts when data is available', async () => {
 	});
 
 	const { container } = render(AnalysisSection);
-	
+
 	// Wait for data to load and charts to initialize
-	await waitFor(() => {
-		const chartContainers = container.querySelectorAll('.chart-container');
-		expect(chartContainers).toHaveLength(2);
-	}, { timeout: 3000 });
-	
+	await waitFor(
+		() => {
+			const chartContainers = container.querySelectorAll('.chart-container');
+			expect(chartContainers).toHaveLength(2);
+		},
+		{ timeout: 3000 }
+	);
+
 	const charts = container.querySelectorAll('.chart');
 	expect(charts).toHaveLength(2);
-}); 
+});

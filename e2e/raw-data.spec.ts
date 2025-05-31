@@ -135,14 +135,14 @@ test.describe('Raw Data Tab', () => {
 		// Check that the new row has today's date (approximately)
 		const today = new Date();
 		const todayStr = today.getFullYear().toString();
-		await expect(page.locator('tbody tr').first().locator('input[type="datetime-local"]')).toHaveValue(
-			new RegExp(todayStr)
-		);
+		await expect(
+			page.locator('tbody tr').first().locator('input[type="datetime-local"]')
+		).toHaveValue(new RegExp(todayStr));
 
 		// Check that save status might show "Saving..." (optional since it's fast)
 		const savingStatus = page.locator('.save-status.saving');
 		const savedStatus = page.locator('.save-status.saved');
-		
+
 		// Either saving or saved status should be visible
 		await expect(savingStatus.or(savedStatus)).toBeVisible({ timeout: 3000 });
 	});
