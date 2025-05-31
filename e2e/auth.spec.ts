@@ -121,10 +121,8 @@ test.describe('Authentication Flow', () => {
 
 		// Click on Analysis tab
 		await page.getByRole('tab', { name: 'Analysis' }).click();
-		await expect(page.getByRole('heading', { name: 'Analysis & Visualization' })).toBeVisible();
-		await expect(
-			page.getByText('Interactive charts and trend analysis of your body composition data.')
-		).toBeVisible();
+		await expect(page.locator('.chart-container').first()).toBeVisible();
+		await expect(page.locator('.chart').first()).toBeVisible();
 
 		// Click back to Data Import tab
 		await page.getByRole('tab', { name: 'Data Import' }).click();

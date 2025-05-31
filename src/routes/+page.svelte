@@ -4,6 +4,7 @@
 	import AuthSection from '$lib/components/AuthSection.svelte';
 	import ConfigSection from '$lib/components/ConfigSection.svelte';
 	import RawDataTable from '$lib/components/RawDataTable.svelte';
+	import AnalysisSection from '$lib/components/AnalysisSection.svelte';
 
 	let activeTab = 'data-import';
 	let isConfigured = false;
@@ -68,15 +69,7 @@
 				{:else if activeTab === 'raw-data'}
 					<RawDataTable />
 				{:else if activeTab === 'analysis'}
-					<div class="feature-preview">
-						<h2 class="feature-title">Analysis & Visualization</h2>
-						<p class="feature-description">
-							Interactive charts and trend analysis of your body composition data.
-						</p>
-						<p class="feature-note">
-							This feature will be available after implementing data import functionality.
-						</p>
-					</div>
+					<AnalysisSection />
 				{/if}
 			</div>
 		{/if}
