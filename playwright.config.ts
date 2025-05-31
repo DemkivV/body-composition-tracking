@@ -9,7 +9,6 @@ export default defineConfig({
 	testDir: 'e2e',
 
 	// Performance optimizations for 12-core machine
-	// Use 10 workers locally (leave 2 cores for OS/dev tools), auto-detect in CI
 	workers: process.env.CI ? undefined : 12, // undefined lets Playwright auto-detect CI workers
 
 	// Global test settings
