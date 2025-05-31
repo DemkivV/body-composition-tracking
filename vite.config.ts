@@ -5,6 +5,10 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
+	build: {
+		// Set warning limit to 500KB (default) to catch any regressions
+		chunkSizeWarningLimit: 500
+	},
 	test: {
 		workspace: [
 			{

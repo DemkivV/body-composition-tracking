@@ -5,15 +5,29 @@ import AnalysisSection from './AnalysisSection.svelte';
 // Mock fetch globally
 global.fetch = vi.fn();
 
-// Mock ECharts to avoid DOM sizing issues
-vi.mock('echarts', () => ({
-	default: {
-		init: vi.fn(() => ({
-			setOption: vi.fn(),
-			resize: vi.fn(),
-			dispose: vi.fn()
-		}))
-	}
+// Mock ECharts tree-shaking modules to avoid DOM sizing issues
+const mockChart = {
+	setOption: vi.fn(),
+	resize: vi.fn(),
+	dispose: vi.fn()
+};
+
+const mockEcharts = {
+	init: vi.fn(() => mockChart),
+	use: vi.fn()
+};
+
+vi.mock('echarts/core', () => mockEcharts);
+vi.mock('echarts/charts', () => ({
+	LineChart: Symbol('LineChart')
+}));
+vi.mock('echarts/components', () => ({
+	GridComponent: Symbol('GridComponent'),
+	TitleComponent: Symbol('TitleComponent'),
+	TooltipComponent: Symbol('TooltipComponent')
+}));
+vi.mock('echarts/renderers', () => ({
+	CanvasRenderer: Symbol('CanvasRenderer')
 }));
 
 // Store original console.error
