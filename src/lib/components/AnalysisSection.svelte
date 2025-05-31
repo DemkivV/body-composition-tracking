@@ -12,10 +12,15 @@
 	let bodyFatChart: any;
 	let echartsLib: any;
 
-	// Reactive processed data
+	// Reactive processed data with outlier removal and weighted averaging enabled
 	$: processedData = processBodyCompositionData(data, {
 		includeIncompleteData: true,
-		sortOrder: 'asc'
+		sortOrder: 'asc',
+		removeOutliers: true,
+		outlierDetectionWindow: 15,
+		outlierThreshold: 3.5,
+		useWeightedAverage: true,
+		weightedAverageWindow: 4
 	});
 
 	onMount(() => {
