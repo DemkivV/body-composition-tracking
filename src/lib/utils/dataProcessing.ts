@@ -297,7 +297,6 @@ function _applyWeightedAverages(
 	// For now, return data as-is
 	// Future implementation will calculate rolling weighted averages
 	// based on the specified window size
-	console.log(`Weighted averages not yet implemented`);
 	return data;
 }
 

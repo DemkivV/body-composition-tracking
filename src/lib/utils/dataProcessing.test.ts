@@ -1,6 +1,20 @@
-import { describe, it, expect } from 'vitest';
-import { processBodyCompositionData } from './dataProcessing';
-import type { BodyCompositionRow } from '$lib/types/data';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { processBodyCompositionData } from './dataProcessing.js';
+import type { BodyCompositionRow } from '../types/data.js';
+
+// Store original console methods
+let originalConsoleLog: typeof console.log;
+
+beforeEach(() => {
+	// Mock console.log to suppress performance logs during testing
+	originalConsoleLog = console.log;
+	console.log = vi.fn();
+});
+
+afterEach(() => {
+	// Restore original console.log
+	console.log = originalConsoleLog;
+});
 
 // Helper function to create test data
 function createTestRow(

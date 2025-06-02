@@ -9,7 +9,9 @@ global.fetch = vi.fn();
 const mockChart = {
 	setOption: vi.fn(),
 	resize: vi.fn(),
-	dispose: vi.fn()
+	dispose: vi.fn(),
+	off: vi.fn(),
+	on: vi.fn()
 };
 
 const mockEcharts = {
@@ -32,18 +34,27 @@ vi.mock('echarts/renderers', () => ({
 	CanvasRenderer: Symbol('CanvasRenderer')
 }));
 
-// Store original console.error
+// Store original console methods
 let originalConsoleError: typeof console.error;
+let originalConsoleLog: typeof console.log;
+let originalConsoleWarn: typeof console.warn;
 
 beforeEach(() => {
-	// Store and mock console.error to suppress error logs in tests
+	// Store and mock console methods to suppress logs in tests
 	originalConsoleError = console.error;
+	originalConsoleLog = console.log;
+	originalConsoleWarn = console.warn;
+	
 	console.error = vi.fn();
+	console.log = vi.fn();
+	console.warn = vi.fn();
 });
 
 afterEach(() => {
-	// Restore original console.error
+	// Restore original console methods
 	console.error = originalConsoleError;
+	console.log = originalConsoleLog;
+	console.warn = originalConsoleWarn;
 	vi.clearAllMocks();
 });
 
@@ -90,6 +101,8 @@ test('AnalysisSection renders charts when data is available', async () => {
 	// Wait for data to load and the unified chart to initialize
 	await waitFor(
 		() => {
+			// Check that the loading state is no longer visible
+			expect(container.querySelector('.loading-section')).not.toBeInTheDocument();
 			// Check for the unified chart container
 			const unifiedChartContainer = container.querySelector('.unified-chart-container');
 			expect(unifiedChartContainer).toBeInTheDocument();
@@ -100,7 +113,4 @@ test('AnalysisSection renders charts when data is available', async () => {
 	// Check that the chart element is present
 	const chart = container.querySelector('.chart');
 	expect(chart).toBeInTheDocument();
-	
-	// Verify the loading state is no longer visible
-	expect(container.querySelector('.loading-section')).not.toBeInTheDocument();
 });

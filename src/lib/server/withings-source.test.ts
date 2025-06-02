@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from 'vitest';
 import { WithingsSource } from './withings-source.js';
 import * as config from './config.js';
 import { join } from 'path';
@@ -24,17 +24,34 @@ const mockFetch = global.fetch as MockedFunction<typeof global.fetch>;
 const mockFsWriteFile = fs.writeFile as MockedFunction<typeof fs.writeFile>;
 const mockFsMkdir = fs.mkdir as MockedFunction<typeof fs.mkdir>;
 
+// Store original console methods
+let originalConsoleLog: typeof console.log;
+let originalConsoleWarn: typeof console.warn;
+
 describe('WithingsSource', () => {
 	let withingsSource: WithingsSource;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		
+		// Mock console methods to suppress WithingsSource output during tests
+		originalConsoleLog = console.log;
+		originalConsoleWarn = console.warn;
+		console.log = vi.fn();
+		console.warn = vi.fn();
+		
 		withingsSource = new WithingsSource();
 		
 		// Mock config
 		mockGetDataDir.mockReturnValue('/tmp/test-data');
 		mockFsMkdir.mockResolvedValue(undefined);
 		mockFsWriteFile.mockResolvedValue(undefined);
+	});
+
+	afterEach(() => {
+		// Restore original console methods
+		console.log = originalConsoleLog;
+		console.warn = originalConsoleWarn;
 	});
 
 	describe('importAllDataToCSV', () => {
