@@ -68,7 +68,30 @@ export class WithingsSource {
 			throw new Error(`API request failed: ${response.status} ${response.statusText}`);
 		}
 
-		return await response.json();
+		const apiResponse: WithingsApiResponse = await response.json();
+
+		// Check for Withings API error status codes
+		if (apiResponse.status !== 0) {
+			const errorMessage = apiResponse.error || `Withings API error (status: ${apiResponse.status})`;
+			
+			// Map common error codes to more user-friendly messages
+			switch (apiResponse.status) {
+				case 401:
+					throw new Error('Unauthorized: Invalid access token');
+				case 601:
+					throw new Error('Access token expired. Please re-authenticate');
+				case 603:
+					throw new Error('Insufficient permissions for this action');
+				case 2555:
+					throw new Error('Unknown user - user does not exist');
+				case 2556:
+					throw new Error('User suspended');
+				default:
+					throw new Error(errorMessage);
+			}
+		}
+
+		return apiResponse;
 	}
 
 	/**

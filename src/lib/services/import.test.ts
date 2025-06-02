@@ -318,5 +318,43 @@ describe('ImportService', () => {
 			expect(result.success).toBe(false);
 			expect(result.message).toBe('Import failed: Network error');
 		});
+
+		it('should handle Withings API authentication errors gracefully', async () => {
+			// Mock authentication
+			mockIsAuthenticated.mockResolvedValue(true);
+
+			// Mock no existing data (triggers full import)
+			mockFsAccess.mockRejectedValue(new Error('File not found'));
+
+			// Mock Withings API authentication error
+			mockWithingsSource.importAllDataToCSV.mockRejectedValue(
+				new Error('Access token expired. Please re-authenticate')
+			);
+
+			const result = await importService.intelligentImport();
+
+			expect(result.success).toBe(false);
+			expect(result.message).toBe('Import failed: Access token expired. Please re-authenticate');
+		});
+
+		it('should handle Withings API permission errors gracefully', async () => {
+			// Mock authentication
+			mockIsAuthenticated.mockResolvedValue(true);
+
+			// Mock existing data (triggers incremental import)
+			mockFsAccess.mockResolvedValue(undefined);
+			mockFsReadFile.mockResolvedValue('Date,"Weight (kg)"\n2023-01-01,75.5\n');
+			mockWithingsSource.getMostRecentTimestamp.mockResolvedValue(new Date('2023-12-01T10:00:00Z'));
+
+			// Mock Withings API permission error
+			mockWithingsSource.importIncrementalDataToCSV.mockRejectedValue(
+				new Error('Insufficient permissions for this action')
+			);
+
+			const result = await importService.intelligentImport();
+
+			expect(result.success).toBe(false);
+			expect(result.message).toBe('Import failed: Insufficient permissions for this action');
+		});
 	});
 });
