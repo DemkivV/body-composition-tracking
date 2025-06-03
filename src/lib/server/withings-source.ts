@@ -25,19 +25,16 @@ interface WithingsApiResponse {
 }
 
 export class WithingsSource {
-	private token: WithingsToken | null = null;
-
 	/**
 	 * Get valid authentication token
 	 */
 	private async getToken(): Promise<WithingsToken> {
-		if (!this.token) {
-			this.token = await getValidToken();
-			if (!this.token) {
-				throw new Error('No valid authentication token available');
-			}
+		// Always get fresh token to ensure it's valid and refreshed if needed
+		const token = await getValidToken();
+		if (!token) {
+			throw new Error('No valid authentication token available');
 		}
-		return this.token;
+		return token;
 	}
 
 	/**
@@ -77,9 +74,9 @@ export class WithingsSource {
 			// Map common error codes to more user-friendly messages
 			switch (apiResponse.status) {
 				case 401:
-					throw new Error('Unauthorized: Invalid access token');
 				case 601:
-					throw new Error('Access token expired. Please re-authenticate');
+					// Token issues - clear any cached tokens and suggest re-authentication
+					throw new Error('Authentication expired. Please re-authenticate and try again');
 				case 603:
 					throw new Error('Insufficient permissions for this action');
 				case 2555:

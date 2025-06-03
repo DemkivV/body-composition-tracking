@@ -232,7 +232,7 @@ describe('WithingsSource', () => {
 			} as Response);
 
 			// Now it should throw an error instead of creating empty CSV
-			await expect(withingsSource.importAllDataToCSV()).rejects.toThrow('Unauthorized: Invalid access token');
+			await expect(withingsSource.importAllDataToCSV()).rejects.toThrow('Authentication expired. Please re-authenticate and try again');
 
 			// Should not write any CSV file
 			expect(mockFsWriteFile).not.toHaveBeenCalled();
@@ -258,7 +258,7 @@ describe('WithingsSource', () => {
 			} as Response);
 
 			// Now it should throw an error instead of creating empty CSV
-			await expect(withingsSource.importAllDataToCSV()).rejects.toThrow('Access token expired. Please re-authenticate');
+			await expect(withingsSource.importAllDataToCSV()).rejects.toThrow('Authentication expired. Please re-authenticate and try again');
 
 			// Should not write any CSV file
 			expect(mockFsWriteFile).not.toHaveBeenCalled();
