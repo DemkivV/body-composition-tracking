@@ -228,13 +228,6 @@
 				},
 				top: 10
 			},
-			legend: {
-				data: ['Body Weight', 'Body Fat %'],
-				top: 50,
-				textStyle: {
-					color: '#e2e8f0'
-				}
-			},
 			tooltip: {
 				trigger: 'axis',
 				axisPointer: {
@@ -333,7 +326,7 @@
 			yAxis: [
 				{
 					type: 'value',
-					name: 'Weight (kg)',
+					name: 'Body Weight',
 					position: 'left',
 					min: weightMin,
 					max: weightMax,
@@ -357,7 +350,13 @@
 						lineStyle: {
 							color: '#334155'
 						},
-						show: true
+						show: true,
+						// Use interval function to skip the last (top) split line
+						interval: function(index: number, value: number) {
+							// Get the total number of splits and skip the last one (top line)
+							const totalSplits = 5; // Based on splitNumber: 5
+							return index < totalSplits - 1;
+						}
 					},
 					gridIndex: 0,
 					// Improve tick spacing
@@ -366,24 +365,24 @@
 				},
 				{
 					type: 'value',
-					name: 'Body Fat (%)',
+					name: 'Body Fat',
 					position: 'right',
 					min: bodyFatMin,
 					max: bodyFatMax,
 					axisLabel: {
 						formatter: (value: number) => formatAxisLabel(value, '%'),
-						color: '#ef4444',
+						color: '#f97316',
 						margin: 8, // Add margin to prevent cutoff
 						showMinLabel: false, // Hide min label to prevent verbose decimals
 						showMaxLabel: false // Hide max label to prevent verbose decimals
 					},
 					nameTextStyle: {
-						color: '#ef4444',
+						color: '#f97316',
 						align: 'right'
 					},
 					axisLine: {
 						lineStyle: {
-							color: '#ef4444'
+							color: '#f97316'
 						}
 					},
 					splitLine: {
@@ -508,11 +507,11 @@
 					symbol: 'circle',
 					symbolSize: 4,
 					lineStyle: {
-						color: '#ef4444',
+						color: '#f97316',
 						width: 3
 					},
 					itemStyle: {
-						color: '#ef4444'
+						color: '#f97316'
 					},
 					areaStyle: {
 						color: {
@@ -524,11 +523,11 @@
 							colorStops: [
 								{
 									offset: 0,
-									color: 'rgba(239, 68, 68, 0.2)'
+									color: 'rgba(249, 115, 22, 0.2)'
 								},
 								{
 									offset: 1,
-									color: 'rgba(239, 68, 68, 0.05)'
+									color: 'rgba(249, 115, 22, 0.05)'
 								}
 							]
 						}
@@ -570,7 +569,7 @@
 					smooth: true,
 					symbol: 'none',
 					lineStyle: {
-						color: '#ef4444',
+						color: '#f97316',
 						width: 1,
 						opacity: 0.3
 					},
