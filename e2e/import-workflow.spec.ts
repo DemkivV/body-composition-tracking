@@ -318,6 +318,81 @@ test.describe('Import Workflow', () => {
 	});
 
 	test('should navigate between tabs correctly', async ({ page }) => {
+		// Mock configuration check - app is configured
+		await page.route('/api/auth/configure', async (route) => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					success: true,
+					configured: true
+				})
+			});
+		});
+
+		// Mock authentication status check 
+		await page.route('/api/auth/status', async (route) => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					success: true,
+					authenticated: false
+				})
+			});
+		});
+
+		// Mock has existing data check
+		await page.route('/api/import/has-data', async (route) => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ hasData: false })
+			});
+		});
+
+		// Mock the raw data API to provide test data for charts
+		await page.route('**/api/data/raw', async (route) => {
+			const method = route.request().method();
+			
+			if (method === 'GET') {
+				await route.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					headers: {
+						'Access-Control-Allow-Origin': '*',
+						'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+						'Access-Control-Allow-Headers': 'Content-Type'
+					},
+					body: JSON.stringify({
+						success: true,
+						data: [
+							{
+								id: 1,
+								Date: '2024-01-15 10:30:00',
+								'Weight (kg)': '75.5',
+								'Fat mass (kg)': '15.2',
+								'Bone mass (kg)': '3.1',
+								'Muscle mass (kg)': '32.8',
+								'Hydration (kg)': '24.4',
+								Comments: 'Test entry 1'
+							},
+							{
+								id: 2,
+								Date: '2024-01-14 10:30:00',
+								'Weight (kg)': '75.8',
+								'Fat mass (kg)': '15.4',
+								'Bone mass (kg)': '3.1',
+								'Muscle mass (kg)': '32.9',
+								'Hydration (kg)': '24.4',
+								Comments: 'Test entry 2'
+							}
+						]
+					})
+				});
+			}
+		});
+
 		// Click on raw data tab
 		await page.locator('[data-tab="raw-data"]').click();
 
@@ -328,8 +403,8 @@ test.describe('Import Workflow', () => {
 		// Click on analysis tab
 		await page.locator('[data-tab="analysis"]').click();
 
-		// Check that analysis content is shown
-		await expect(page.locator('.unified-chart-container').first()).toBeVisible();
+		// Check that analysis content is shown - wait for charts to load
+		await expect(page.locator('.unified-chart-container').first()).toBeVisible({ timeout: 10000 });
 		await expect(page.locator('.chart').first()).toBeVisible();
 
 		// Go back to data import tab
