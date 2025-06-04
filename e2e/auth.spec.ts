@@ -120,7 +120,7 @@ test.describe('Authentication Flow', () => {
 			});
 		});
 
-		// Mock authentication status check 
+		// Mock authentication status check
 		await page.route('/api/auth/status', async (route) => {
 			await route.fulfill({
 				status: 200,
@@ -144,7 +144,7 @@ test.describe('Authentication Flow', () => {
 		// Mock the raw data API to provide test data for charts
 		await page.route('**/api/data/raw', async (route) => {
 			const method = route.request().method();
-			
+
 			if (method === 'GET') {
 				await route.fulfill({
 					status: 200,
@@ -196,9 +196,9 @@ test.describe('Authentication Flow', () => {
 
 		// Click on Analysis tab
 		await page.getByRole('tab', { name: 'Analysis' }).click();
-		
+
 		// Wait for charts to load and be visible
-		await expect(page.locator('.unified-chart-container').first()).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('.chart-container').first()).toBeVisible({ timeout: 10000 });
 		await expect(page.locator('.chart').first()).toBeVisible();
 
 		// Click back to Data Import tab

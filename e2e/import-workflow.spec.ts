@@ -79,19 +79,23 @@ test.describe('Import Workflow', () => {
 
 		// Override window.open to prevent actual popup and immediately simulate success
 		await page.addInitScript(() => {
-			const mockWindow: Partial<Window> = {
-				closed: false,
-				close: () => {
-					mockWindow.closed = true;
-				},
-				focus: () => {}
-			};
-
 			window.open = () => {
+				// Create a mock window object with a mutable closed state
+				const mockWindow = {
+					closed: false,
+					close: function () {
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						(this as any).closed = true;
+					},
+					focus: () => {}
+				};
+
 				// Simulate successful authentication without delay for test reliability
 				setTimeout(() => {
-					mockWindow.closed = true;
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					(mockWindow as any).closed = true;
 				}, 500);
+
 				return mockWindow as Window;
 			};
 		});
@@ -330,7 +334,7 @@ test.describe('Import Workflow', () => {
 			});
 		});
 
-		// Mock authentication status check 
+		// Mock authentication status check
 		await page.route('/api/auth/status', async (route) => {
 			await route.fulfill({
 				status: 200,
@@ -354,7 +358,7 @@ test.describe('Import Workflow', () => {
 		// Mock the raw data API to provide test data for charts
 		await page.route('**/api/data/raw', async (route) => {
 			const method = route.request().method();
-			
+
 			if (method === 'GET') {
 				await route.fulfill({
 					status: 200,
@@ -404,7 +408,7 @@ test.describe('Import Workflow', () => {
 		await page.locator('[data-tab="analysis"]').click();
 
 		// Check that analysis content is shown - wait for charts to load
-		await expect(page.locator('.unified-chart-container').first()).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('.chart-container').first()).toBeVisible({ timeout: 10000 });
 		await expect(page.locator('.chart').first()).toBeVisible();
 
 		// Go back to data import tab

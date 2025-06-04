@@ -44,7 +44,7 @@ beforeEach(() => {
 	originalConsoleError = console.error;
 	originalConsoleLog = console.log;
 	originalConsoleWarn = console.warn;
-	
+
 	console.error = vi.fn();
 	console.log = vi.fn();
 	console.warn = vi.fn();
@@ -60,6 +60,7 @@ afterEach(() => {
 
 test('AnalysisSection renders loading state initially', () => {
 	// Mock fetch to return a pending promise
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(fetch as any).mockReturnValue(new Promise(() => {}));
 
 	const { getByText } = render(AnalysisSection);
@@ -68,6 +69,7 @@ test('AnalysisSection renders loading state initially', () => {
 
 test('AnalysisSection handles API error gracefully', async () => {
 	// Mock fetch to reject
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(fetch as any).mockRejectedValue(new Error('Network error'));
 
 	const { findByText } = render(AnalysisSection);
@@ -91,6 +93,7 @@ test('AnalysisSection renders charts when data is available', async () => {
 		}
 	];
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(fetch as any).mockResolvedValue({
 		ok: true,
 		json: () => Promise.resolve({ success: true, data: mockData })
@@ -98,14 +101,14 @@ test('AnalysisSection renders charts when data is available', async () => {
 
 	const { container } = render(AnalysisSection);
 
-	// Wait for data to load and the unified chart to initialize
+	// Wait for data to load and the chart component to initialize
 	await waitFor(
 		() => {
 			// Check that the loading state is no longer visible
 			expect(container.querySelector('.loading-section')).not.toBeInTheDocument();
-			// Check for the unified chart container
-			const unifiedChartContainer = container.querySelector('.unified-chart-container');
-			expect(unifiedChartContainer).toBeInTheDocument();
+			// Check for the chart container (from the HistoricalDataChart component)
+			const chartContainer = container.querySelector('.chart-container');
+			expect(chartContainer).toBeInTheDocument();
 		},
 		{ timeout: 3000 }
 	);

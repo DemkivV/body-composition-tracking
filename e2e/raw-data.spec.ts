@@ -38,7 +38,7 @@ test.describe('Raw Data Tab', () => {
 		// IMPORTANT: Mock specific /api/data/raw route FIRST and MOST specific
 		await page.route('**/api/data/raw', async (route) => {
 			const method = route.request().method();
-			
+
 			if (method === 'GET') {
 				// Mock getting raw data - returns test data without touching CSV
 				await route.fulfill({
@@ -81,7 +81,7 @@ test.describe('Raw Data Tab', () => {
 				await route.fulfill({
 					status: 200,
 					contentType: 'application/json',
-					body: JSON.stringify({ 
+					body: JSON.stringify({
 						success: true,
 						id: newId,
 						message: 'Row added successfully (test mode)'
@@ -92,7 +92,7 @@ test.describe('Raw Data Tab', () => {
 				await route.fulfill({
 					status: 200,
 					contentType: 'application/json',
-					body: JSON.stringify({ 
+					body: JSON.stringify({
 						success: true,
 						message: 'Row updated successfully (test mode)'
 					})
@@ -102,7 +102,7 @@ test.describe('Raw Data Tab', () => {
 				await route.fulfill({
 					status: 200,
 					contentType: 'application/json',
-					body: JSON.stringify({ 
+					body: JSON.stringify({
 						success: true,
 						message: 'Row deleted successfully (test mode)'
 					})
@@ -112,7 +112,7 @@ test.describe('Raw Data Tab', () => {
 				await route.fulfill({
 					status: 405,
 					contentType: 'application/json',
-					body: JSON.stringify({ 
+					body: JSON.stringify({
 						success: false,
 						error: 'Method not allowed'
 					})
@@ -121,10 +121,10 @@ test.describe('Raw Data Tab', () => {
 		});
 
 		await page.goto('/');
-		
+
 		// Wait for the page to be configured and show the tab navigation
 		await page.waitForSelector('.tab-nav', { timeout: 10000 });
-		
+
 		// Ensure the default tab content is loaded
 		await page.waitForSelector('.tab-content', { timeout: 10000 });
 	});
@@ -135,7 +135,7 @@ test.describe('Raw Data Tab', () => {
 
 		// Wait for the data container to load and ensure it's visible
 		await expect(page.locator('.data-container')).toBeVisible({ timeout: 10000 });
-		
+
 		// Wait for loading to complete
 		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 10000 });
 
@@ -250,7 +250,7 @@ test.describe('Raw Data Tab', () => {
 		// Mock empty data response - ensures no production data is affected
 		await page.route('/api/data/raw', async (route) => {
 			const method = route.request().method();
-			
+
 			if (method === 'GET') {
 				await route.fulfill({
 					status: 200,
@@ -265,7 +265,7 @@ test.describe('Raw Data Tab', () => {
 				await route.fulfill({
 					status: 200,
 					contentType: 'application/json',
-					body: JSON.stringify({ 
+					body: JSON.stringify({
 						success: true,
 						id: 1,
 						message: 'First row added successfully (test mode)'
@@ -276,7 +276,7 @@ test.describe('Raw Data Tab', () => {
 				await route.fulfill({
 					status: 200,
 					contentType: 'application/json',
-					body: JSON.stringify({ 
+					body: JSON.stringify({
 						success: true,
 						message: 'Operation completed (test mode)'
 					})
@@ -298,7 +298,7 @@ test.describe('Raw Data Tab', () => {
 		// Mock slow loading response - ensures no production data is affected
 		await page.route('/api/data/raw', async (route) => {
 			const method = route.request().method();
-			
+
 			if (method === 'GET') {
 				// Delay the response to show loading state
 				await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -315,7 +315,7 @@ test.describe('Raw Data Tab', () => {
 				await route.fulfill({
 					status: 200,
 					contentType: 'application/json',
-					body: JSON.stringify({ 
+					body: JSON.stringify({
 						success: true,
 						message: 'Operation completed (test mode)'
 					})
@@ -339,7 +339,7 @@ test.describe('Raw Data Tab', () => {
 		// Mock error response - ensures no production data is affected
 		await page.route('/api/data/raw', async (route) => {
 			const method = route.request().method();
-			
+
 			if (method === 'GET') {
 				await route.fulfill({
 					status: 500,
@@ -354,7 +354,7 @@ test.describe('Raw Data Tab', () => {
 				await route.fulfill({
 					status: 500,
 					contentType: 'application/json',
-					body: JSON.stringify({ 
+					body: JSON.stringify({
 						success: false,
 						error: 'Operation failed (test mode)'
 					})

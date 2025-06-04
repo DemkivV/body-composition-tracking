@@ -33,15 +33,15 @@ describe('WithingsSource', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		
+
 		// Mock console methods to suppress WithingsSource output during tests
 		originalConsoleLog = console.log;
 		originalConsoleWarn = console.warn;
 		console.log = vi.fn();
 		console.warn = vi.fn();
-		
+
 		withingsSource = new WithingsSource();
-		
+
 		// Mock config
 		mockGetDataDir.mockReturnValue('/tmp/test-data');
 		mockFsMkdir.mockResolvedValue(undefined);
@@ -134,11 +134,13 @@ describe('WithingsSource', () => {
 			);
 
 			// Get the actual CSV content that was written
-			const csvContent = (mockFsWriteFile.mock.calls[0][1] as string);
-			
+			const csvContent = mockFsWriteFile.mock.calls[0][1] as string;
+
 			// Should contain the header
-			expect(csvContent).toContain('Date,"Weight (kg)","Fat mass (kg)","Bone mass (kg)","Muscle mass (kg)","Hydration (kg)",Comments');
-			
+			expect(csvContent).toContain(
+				'Date,"Weight (kg)","Fat mass (kg)","Bone mass (kg)","Muscle mass (kg)","Hydration (kg)",Comments'
+			);
+
 			// Should contain measurement data
 			expect(csvContent).toContain('75.50'); // Weight
 			expect(csvContent).toContain('15.20'); // Fat mass
@@ -232,7 +234,9 @@ describe('WithingsSource', () => {
 			} as Response);
 
 			// Now it should throw an error instead of creating empty CSV
-			await expect(withingsSource.importAllDataToCSV()).rejects.toThrow('Authentication expired. Please re-authenticate and try again');
+			await expect(withingsSource.importAllDataToCSV()).rejects.toThrow(
+				'Authentication expired. Please re-authenticate and try again'
+			);
 
 			// Should not write any CSV file
 			expect(mockFsWriteFile).not.toHaveBeenCalled();
@@ -258,7 +262,9 @@ describe('WithingsSource', () => {
 			} as Response);
 
 			// Now it should throw an error instead of creating empty CSV
-			await expect(withingsSource.importAllDataToCSV()).rejects.toThrow('Authentication expired. Please re-authenticate and try again');
+			await expect(withingsSource.importAllDataToCSV()).rejects.toThrow(
+				'Authentication expired. Please re-authenticate and try again'
+			);
 
 			// Should not write any CSV file
 			expect(mockFsWriteFile).not.toHaveBeenCalled();
@@ -274,7 +280,7 @@ describe('WithingsSource', () => {
 
 			// Mock API response with permission error
 			const apiResponse = {
-				status: 603, // Permission denied 
+				status: 603, // Permission denied
 				error: 'Insufficient scope for this action'
 			};
 
@@ -284,10 +290,12 @@ describe('WithingsSource', () => {
 			} as Response);
 
 			// Now it should throw an error instead of creating empty CSV
-			await expect(withingsSource.importAllDataToCSV()).rejects.toThrow('Insufficient permissions for this action');
+			await expect(withingsSource.importAllDataToCSV()).rejects.toThrow(
+				'Insufficient permissions for this action'
+			);
 
 			// Should not write any CSV file
 			expect(mockFsWriteFile).not.toHaveBeenCalled();
 		});
 	});
-}); 
+});

@@ -262,7 +262,7 @@ function calculateWeightedAverages(
  */
 function calculateWeightedMetricAverage(
 	values: (number | null)[],
-	windowSize: number
+	_windowSize: number
 ): number | null {
 	// Filter out null values while keeping track of their positions
 	const validEntries: { value: number; weight: number }[] = [];

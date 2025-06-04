@@ -69,8 +69,9 @@ export class WithingsSource {
 
 		// Check for Withings API error status codes
 		if (apiResponse.status !== 0) {
-			const errorMessage = apiResponse.error || `Withings API error (status: ${apiResponse.status})`;
-			
+			const errorMessage =
+				apiResponse.error || `Withings API error (status: ${apiResponse.status})`;
+
 			// Map common error codes to more user-friendly messages
 			switch (apiResponse.status) {
 				case 401:
