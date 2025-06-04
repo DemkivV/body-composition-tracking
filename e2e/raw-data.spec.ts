@@ -1,135 +1,228 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Raw Data Tab', () => {
-	test.beforeEach(async ({ page }) => {
-		// Mock configuration check
-		await page.route('/api/auth/configure', async (route) => {
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({
-					success: true,
-					configured: true
-				})
-			});
+// Create isolated mock setup functions to prevent race conditions
+async function setupBaseMocks(page) {
+	// Mock configuration check - always first
+	await page.route('/api/auth/configure', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: true,
+				configured: true
+			})
 		});
-
-		// Mock auth status check
-		await page.route('/api/auth/status', async (route) => {
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({
-					success: true,
-					authenticated: false
-				})
-			});
-		});
-
-		// Mock has existing data check
-		await page.route('/api/import/has-data', async (route) => {
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({ hasData: false })
-			});
-		});
-
-		// IMPORTANT: Mock specific /api/data/raw route FIRST and MOST specific
-		await page.route('**/api/data/raw', async (route) => {
-			const method = route.request().method();
-
-			if (method === 'GET') {
-				// Mock getting raw data - returns test data without touching CSV
-				await route.fulfill({
-					status: 200,
-					contentType: 'application/json',
-					headers: {
-						'Access-Control-Allow-Origin': '*',
-						'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-						'Access-Control-Allow-Headers': 'Content-Type'
-					},
-					body: JSON.stringify({
-						success: true,
-						data: [
-							{
-								id: 1,
-								Date: '2024-01-15 10:30:00',
-								'Weight (kg)': '75.5',
-								'Fat mass (kg)': '15.2',
-								'Bone mass (kg)': '3.1',
-								'Muscle mass (kg)': '32.8',
-								'Hydration (kg)': '24.4',
-								Comments: 'Test entry 1'
-							},
-							{
-								id: 2,
-								Date: '2024-01-14 10:30:00',
-								'Weight (kg)': '75.8',
-								'Fat mass (kg)': '15.4',
-								'Bone mass (kg)': '3.1',
-								'Muscle mass (kg)': '32.9',
-								'Hydration (kg)': '24.4',
-								Comments: 'Test entry 2'
-							}
-						]
-					})
-				});
-			} else if (method === 'POST') {
-				// Mock adding new row - simulates success without writing to CSV
-				const newId = Math.floor(Math.random() * 1000) + 100;
-				await route.fulfill({
-					status: 200,
-					contentType: 'application/json',
-					body: JSON.stringify({
-						success: true,
-						id: newId,
-						message: 'Row added successfully (test mode)'
-					})
-				});
-			} else if (method === 'PUT') {
-				// Mock updating existing row - simulates success without writing to CSV
-				await route.fulfill({
-					status: 200,
-					contentType: 'application/json',
-					body: JSON.stringify({
-						success: true,
-						message: 'Row updated successfully (test mode)'
-					})
-				});
-			} else if (method === 'DELETE') {
-				// Mock deleting row - simulates success without writing to CSV
-				await route.fulfill({
-					status: 200,
-					contentType: 'application/json',
-					body: JSON.stringify({
-						success: true,
-						message: 'Row deleted successfully (test mode)'
-					})
-				});
-			} else {
-				// For any other HTTP methods, return method not allowed
-				await route.fulfill({
-					status: 405,
-					contentType: 'application/json',
-					body: JSON.stringify({
-						success: false,
-						error: 'Method not allowed'
-					})
-				});
-			}
-		});
-
-		await page.goto('/');
-
-		// Wait for the page to be configured and show the tab navigation
-		await page.waitForSelector('.tab-nav', { timeout: 10000 });
-
-		// Ensure the default tab content is loaded
-		await page.waitForSelector('.tab-content', { timeout: 10000 });
 	});
 
+	// Mock auth status check
+	await page.route('/api/auth/status', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: true,
+				authenticated: false
+			})
+		});
+	});
+
+	// Mock has existing data check
+	await page.route('/api/import/has-data', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({ hasData: false })
+		});
+	});
+}
+
+async function setupStandardDataMocks(page) {
+	// Standard mock for /api/data/raw with test data
+	await page.route('**/api/data/raw', async (route) => {
+		const method = route.request().method();
+
+		if (method === 'GET') {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				headers: {
+					'Access-Control-Allow-Origin': '*',
+					'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+					'Access-Control-Allow-Headers': 'Content-Type'
+				},
+				body: JSON.stringify({
+					success: true,
+					data: [
+						{
+							id: 1,
+							Date: '2024-01-15 10:30:00',
+							'Weight (kg)': '75.5',
+							'Fat mass (kg)': '15.2',
+							'Bone mass (kg)': '3.1',
+							'Muscle mass (kg)': '32.8',
+							'Hydration (kg)': '24.4',
+							Comments: 'Test entry 1C'
+						},
+						{
+							id: 2,
+							Date: '2024-01-14 10:30:00',
+							'Weight (kg)': '75.8',
+							'Fat mass (kg)': '15.4',
+							'Bone mass (kg)': '3.1',
+							'Muscle mass (kg)': '32.9',
+							'Hydration (kg)': '24.4',
+							Comments: 'Test entry 2C'
+						}
+					]
+				})
+			});
+		} else if (method === 'POST') {
+			const newId = Math.floor(Math.random() * 1000) + 100;
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					success: true,
+					id: newId,
+					message: 'Row added successfully (test mode)'
+				})
+			});
+		} else if (method === 'PUT') {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					success: true,
+					message: 'Row updated successfully (test mode)'
+				})
+			});
+		} else if (method === 'DELETE') {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					success: true,
+					message: 'Row deleted successfully (test mode)'
+				})
+			});
+		} else {
+			await route.fulfill({
+				status: 405,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					success: false,
+					error: 'Method not allowed'
+				})
+			});
+		}
+	});
+}
+
+async function setupEmptyDataMocks(page) {
+	// Mock for empty data state
+	await page.route('**/api/data/raw', async (route) => {
+		const method = route.request().method();
+
+		if (method === 'GET') {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					success: true,
+					data: []
+				})
+			});
+		} else if (method === 'POST') {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					success: true,
+					id: 1,
+					message: 'First row added successfully (test mode)'
+				})
+			});
+		} else {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					success: true,
+					message: 'Operation completed (test mode)'
+				})
+			});
+		}
+	});
+}
+
+async function setupSlowLoadingMocks(page) {
+	// Mock for slow loading state
+	await page.route('**/api/data/raw', async (route) => {
+		const method = route.request().method();
+
+		if (method === 'GET') {
+			await new Promise((resolve) => setTimeout(resolve, 1000));
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					success: true,
+					data: []
+				})
+			});
+		} else {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					success: true,
+					message: 'Operation completed (test mode)'
+				})
+			});
+		}
+	});
+}
+
+async function setupErrorMocks(page) {
+	// Mock for error state
+	await page.route('**/api/data/raw', async (route) => {
+		const method = route.request().method();
+
+		if (method === 'GET') {
+			await route.fulfill({
+				status: 500,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					success: false,
+					error: 'Database connection failed'
+				})
+			});
+		} else {
+			await route.fulfill({
+				status: 500,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					success: false,
+					error: 'Operation failed (test mode)'
+				})
+			});
+		}
+	});
+}
+
+// Utility function to navigate and wait for page readiness
+async function navigateAndWaitForTab(page) {
+	await page.goto('/');
+	await page.waitForSelector('.tab-nav', { timeout: 10000 });
+	await page.waitForSelector('.tab-content', { timeout: 10000 });
+}
+
+test.describe('Raw Data Tab - Standard Tests', () => {
 	test('should display raw data table when Raw Data tab is clicked', async ({ page }) => {
+		await setupBaseMocks(page);
+		await setupStandardDataMocks(page);
+		await navigateAndWaitForTab(page);
+
 		// Click on Raw Data tab
 		await page.getByRole('tab', { name: 'Raw Data' }).click();
 
@@ -161,6 +254,10 @@ test.describe('Raw Data Tab', () => {
 	});
 
 	test('should show Add Row button and save status', async ({ page }) => {
+		await setupBaseMocks(page);
+		await setupStandardDataMocks(page);
+		await navigateAndWaitForTab(page);
+
 		await page.getByRole('tab', { name: 'Raw Data' }).click();
 		await expect(page.locator('.data-container')).toBeVisible({ timeout: 10000 });
 		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 10000 });
@@ -173,6 +270,10 @@ test.describe('Raw Data Tab', () => {
 	});
 
 	test('should add new row when Add Row button is clicked', async ({ page }) => {
+		await setupBaseMocks(page);
+		await setupStandardDataMocks(page);
+		await navigateAndWaitForTab(page);
+
 		await page.getByRole('tab', { name: 'Raw Data' }).click();
 		await expect(page.locator('.data-container')).toBeVisible({ timeout: 10000 });
 		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 10000 });
@@ -202,6 +303,10 @@ test.describe('Raw Data Tab', () => {
 	});
 
 	test('should allow editing cell values', async ({ page }) => {
+		await setupBaseMocks(page);
+		await setupStandardDataMocks(page);
+		await navigateAndWaitForTab(page);
+
 		await page.getByRole('tab', { name: 'Raw Data' }).click();
 		await expect(page.locator('.data-container')).toBeVisible({ timeout: 10000 });
 		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 10000 });
@@ -221,6 +326,10 @@ test.describe('Raw Data Tab', () => {
 	});
 
 	test('should allow deleting rows', async ({ page }) => {
+		await setupBaseMocks(page);
+		await setupStandardDataMocks(page);
+		await navigateAndWaitForTab(page);
+
 		await page.getByRole('tab', { name: 'Raw Data' }).click();
 		await expect(page.locator('.data-container')).toBeVisible({ timeout: 10000 });
 		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 10000 });
@@ -246,133 +355,11 @@ test.describe('Raw Data Tab', () => {
 		await expect(savingStatus.or(savedStatus)).toBeVisible({ timeout: 3000 });
 	});
 
-	test('should handle empty state correctly', async ({ page }) => {
-		// Mock empty data response - ensures no production data is affected
-		await page.route('/api/data/raw', async (route) => {
-			const method = route.request().method();
-
-			if (method === 'GET') {
-				await route.fulfill({
-					status: 200,
-					contentType: 'application/json',
-					body: JSON.stringify({
-						success: true,
-						data: []
-					})
-				});
-			} else if (method === 'POST') {
-				// Mock adding row even in empty state
-				await route.fulfill({
-					status: 200,
-					contentType: 'application/json',
-					body: JSON.stringify({
-						success: true,
-						id: 1,
-						message: 'First row added successfully (test mode)'
-					})
-				});
-			} else {
-				// Mock other operations
-				await route.fulfill({
-					status: 200,
-					contentType: 'application/json',
-					body: JSON.stringify({
-						success: true,
-						message: 'Operation completed (test mode)'
-					})
-				});
-			}
-		});
-
-		await page.goto('/');
-		await page.waitForSelector('.tab-content', { timeout: 10000 });
-		await page.getByRole('tab', { name: 'Raw Data' }).click();
-
-		// Check empty state is displayed
-		await expect(page.locator('.empty-state')).toBeVisible();
-		await expect(page.getByText('No data available')).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Add First Entry' })).toBeVisible();
-	});
-
-	test('should handle loading state', async ({ page }) => {
-		// Mock slow loading response - ensures no production data is affected
-		await page.route('/api/data/raw', async (route) => {
-			const method = route.request().method();
-
-			if (method === 'GET') {
-				// Delay the response to show loading state
-				await new Promise((resolve) => setTimeout(resolve, 1000));
-				await route.fulfill({
-					status: 200,
-					contentType: 'application/json',
-					body: JSON.stringify({
-						success: true,
-						data: []
-					})
-				});
-			} else {
-				// Mock other operations without delay
-				await route.fulfill({
-					status: 200,
-					contentType: 'application/json',
-					body: JSON.stringify({
-						success: true,
-						message: 'Operation completed (test mode)'
-					})
-				});
-			}
-		});
-
-		await page.goto('/');
-		await page.waitForSelector('.tab-content', { timeout: 10000 });
-		await page.getByRole('tab', { name: 'Raw Data' }).click();
-
-		// Check loading state is displayed
-		await expect(page.locator('.loading-section')).toBeVisible();
-		await expect(page.getByText('Loading data...')).toBeVisible();
-
-		// Wait for loading to complete
-		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 5000 });
-	});
-
-	test('should handle error state', async ({ page }) => {
-		// Mock error response - ensures no production data is affected
-		await page.route('/api/data/raw', async (route) => {
-			const method = route.request().method();
-
-			if (method === 'GET') {
-				await route.fulfill({
-					status: 500,
-					contentType: 'application/json',
-					body: JSON.stringify({
-						success: false,
-						error: 'Database connection failed'
-					})
-				});
-			} else {
-				// Even in error test, mock other operations to prevent data access
-				await route.fulfill({
-					status: 500,
-					contentType: 'application/json',
-					body: JSON.stringify({
-						success: false,
-						error: 'Operation failed (test mode)'
-					})
-				});
-			}
-		});
-
-		await page.goto('/');
-		await page.waitForSelector('.tab-content', { timeout: 10000 });
-		await page.getByRole('tab', { name: 'Raw Data' }).click();
-
-		// Check error state is displayed
-		await expect(page.locator('.error-container')).toBeVisible();
-		await expect(page.getByText('Database connection failed')).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
-	});
-
 	test('should have proper accessibility attributes', async ({ page }) => {
+		await setupBaseMocks(page);
+		await setupStandardDataMocks(page);
+		await navigateAndWaitForTab(page);
+
 		await page.getByRole('tab', { name: 'Raw Data' }).click();
 		await expect(page.locator('.data-container')).toBeVisible({ timeout: 10000 });
 		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 10000 });
@@ -395,8 +382,12 @@ test.describe('Raw Data Tab', () => {
 	});
 
 	test('should maintain responsive design on mobile viewport', async ({ page }) => {
+		await setupBaseMocks(page);
+		await setupStandardDataMocks(page);
+
 		// Set mobile viewport
 		await page.setViewportSize({ width: 375, height: 667 });
+		await navigateAndWaitForTab(page);
 
 		await page.getByRole('tab', { name: 'Raw Data' }).click();
 		await expect(page.locator('.data-container')).toBeVisible({ timeout: 10000 });
@@ -408,5 +399,52 @@ test.describe('Raw Data Tab', () => {
 
 		// Check that Add Row button is still visible
 		await expect(page.getByRole('button', { name: 'Add Row' })).toBeVisible();
+	});
+});
+
+test.describe('Raw Data Tab - Empty State Tests', () => {
+	test('should handle empty state correctly', async ({ page }) => {
+		await setupBaseMocks(page);
+		await setupEmptyDataMocks(page);
+		await navigateAndWaitForTab(page);
+
+		await page.getByRole('tab', { name: 'Raw Data' }).click();
+
+		// Check empty state is displayed
+		await expect(page.locator('.empty-state')).toBeVisible();
+		await expect(page.getByText('No data available')).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Add First Entry' })).toBeVisible();
+	});
+});
+
+test.describe('Raw Data Tab - Loading State Tests', () => {
+	test('should handle loading state', async ({ page }) => {
+		await setupBaseMocks(page);
+		await setupSlowLoadingMocks(page);
+		await navigateAndWaitForTab(page);
+
+		await page.getByRole('tab', { name: 'Raw Data' }).click();
+
+		// Check loading state is displayed
+		await expect(page.locator('.loading-section')).toBeVisible();
+		await expect(page.getByText('Loading data...')).toBeVisible();
+
+		// Wait for loading to complete
+		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 5000 });
+	});
+});
+
+test.describe('Raw Data Tab - Error State Tests', () => {
+	test('should handle error state', async ({ page }) => {
+		await setupBaseMocks(page);
+		await setupErrorMocks(page);
+		await navigateAndWaitForTab(page);
+
+		await page.getByRole('tab', { name: 'Raw Data' }).click();
+
+		// Check error state is displayed
+		await expect(page.locator('.error-container')).toBeVisible();
+		await expect(page.getByText('Database connection failed')).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
 	});
 });
