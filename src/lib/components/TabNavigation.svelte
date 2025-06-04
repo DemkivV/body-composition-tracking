@@ -1,26 +1,24 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	import { goto } from '$app/navigation';
 
 	export let activeTab: string = 'data-import';
 
 	interface Tab {
 		id: string;
 		label: string;
+		path: string;
 		disabled?: boolean;
 	}
 
 	const tabs: Tab[] = [
-		{ id: 'data-import', label: 'Data Import' },
-		{ id: 'raw-data', label: 'Raw Data' },
-		{ id: 'analysis', label: 'Analysis' }
+		{ id: 'data-import', label: 'Data Import', path: '/data-import' },
+		{ id: 'raw-data', label: 'Raw Data', path: '/raw-data' },
+		{ id: 'analysis', label: 'Analysis', path: '/analysis' }
 	];
 
-	const dispatch = createEventDispatcher<{ tabChange: string }>();
-
-	function handleTabClick(tabId: string) {
-		if (activeTab !== tabId) {
-			activeTab = tabId;
-			dispatch('tabChange', tabId);
+	function handleTabClick(tab: Tab) {
+		if (activeTab !== tab.id && !tab.disabled) {
+			goto(tab.path);
 		}
 	}
 </script>
@@ -35,7 +33,7 @@
 			class:active={activeTab === tab.id}
 			class:disabled={tab.disabled}
 			disabled={tab.disabled}
-			on:click={() => handleTabClick(tab.id)}
+			on:click={() => handleTabClick(tab)}
 		>
 			{tab.label}
 		</button>

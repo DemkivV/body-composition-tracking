@@ -43,8 +43,8 @@ test.describe('Authentication Flow', () => {
 		// Wait for the loading state to complete
 		await page.waitForSelector('.tab-content', { timeout: 10000 });
 
-		// Check page title
-		await expect(page).toHaveTitle('Body Composition Tracker');
+		// Check page title - updated for new routing structure
+		await expect(page).toHaveTitle('Data Import - Body Composition Tracker');
 
 		// Check main heading
 		await expect(page.getByRole('heading', { name: 'Body Composition Tracker' })).toBeVisible();
@@ -189,13 +189,18 @@ test.describe('Authentication Flow', () => {
 		// Wait for the loading state to complete
 		await page.waitForSelector('.tab-content', { timeout: 10000 });
 
+		// Verify we're on the data-import page initially
+		await expect(page).toHaveURL('/data-import');
+
 		// Click on Raw Data tab
 		await page.getByRole('tab', { name: 'Raw Data' }).click();
+		await expect(page).toHaveURL('/raw-data');
 		await expect(page.getByRole('heading', { name: 'Raw Data' })).toBeVisible();
 		await expect(page.locator('.data-container')).toBeVisible();
 
 		// Click on Analysis tab
 		await page.getByRole('tab', { name: 'Analysis' }).click();
+		await expect(page).toHaveURL('/analysis');
 
 		// Wait for charts to load and be visible
 		await expect(page.locator('.chart-container').first()).toBeVisible({ timeout: 10000 });
@@ -203,6 +208,7 @@ test.describe('Authentication Flow', () => {
 
 		// Click back to Data Import tab
 		await page.getByRole('tab', { name: 'Data Import' }).click();
+		await expect(page).toHaveURL('/data-import');
 		await expect(page.getByRole('button', { name: 'Authenticate' })).toBeVisible();
 	});
 

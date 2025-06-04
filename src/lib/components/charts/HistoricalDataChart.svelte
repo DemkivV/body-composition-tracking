@@ -74,7 +74,7 @@
 
 			echartsLib = echarts;
 			loading = false;
-			
+
 			// Initialize chart after ECharts is loaded and DOM is ready
 			if (chartContainer) {
 				await initializeChart();
@@ -86,14 +86,16 @@
 		}
 	}
 
-	// Watch for data changes and update chart
+	// Update chart when data or chart instance changes
+	// This reactive statement is safe - updateChart() only calls methods on chart, doesn't reassign it
 	$: if (chart && data && !loading) {
 		updateChart();
 	}
 
 	// Initialize chart when all conditions are met
+	// This reactive statement is safe - initializeChart() only assigns chart once when it's null
 	$: if (chartContainer && echartsLib && !chart && !loading) {
-		initializeChart().catch(err => console.error('Failed to initialize chart:', err));
+		initializeChart().catch((err) => console.error('Failed to initialize chart:', err));
 	}
 
 	// Helper function to convert color to RGBA
@@ -126,22 +128,23 @@
 
 		// Wait for DOM to be updated
 		await tick();
-		
+
 		// Simple retry mechanism if container doesn't have dimensions yet
 		let retryCount = 0;
 		const maxRetries = 10;
-		
+
 		const tryInitialize = () => {
 			if (!chartContainer || chart) return; // Exit if no container or chart already exists
-			
+
 			const containerWidth = chartContainer.offsetWidth || chartContainer.clientWidth;
 			const containerHeight = chartContainer.offsetHeight || chartContainer.clientHeight;
-			
+
 			if (containerWidth > 0 && containerHeight > 0) {
 				// Container has dimensions, initialize chart
+				// This assignment is safe - it only happens once when chart is null
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				chart = (echartsLib as any).init(chartContainer);
-				
+
 				// If we have data, update the chart immediately
 				if (data && data.length > 0) {
 					updateChart();
@@ -154,7 +157,7 @@
 				console.warn('Chart container failed to get dimensions after retries');
 			}
 		};
-		
+
 		tryInitialize();
 	}
 

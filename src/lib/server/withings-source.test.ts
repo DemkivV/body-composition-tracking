@@ -28,6 +28,15 @@ const mockFsMkdir = fs.mkdir as MockedFunction<typeof fs.mkdir>;
 let originalConsoleLog: typeof console.log;
 let originalConsoleWarn: typeof console.warn;
 
+// Define interfaces for better type safety
+interface MockedWithingsSource {
+	getToken(): Promise<{
+		access_token: string;
+		refresh_token: string;
+		expires_at: Date;
+	}>;
+}
+
 describe('WithingsSource', () => {
 	let withingsSource: WithingsSource;
 
@@ -57,7 +66,7 @@ describe('WithingsSource', () => {
 	describe('importAllDataToCSV', () => {
 		it('should create empty CSV when API returns successful response but no measurements', async () => {
 			// Mock the token
-			vi.spyOn(withingsSource as any, 'getToken').mockResolvedValue({
+			vi.spyOn(withingsSource as MockedWithingsSource, 'getToken').mockResolvedValue({
 				access_token: 'test-token',
 				refresh_token: 'refresh-token',
 				expires_at: new Date(Date.now() + 3600000)
@@ -91,7 +100,7 @@ describe('WithingsSource', () => {
 
 		it('should create CSV with measurements when API returns valid data', async () => {
 			// Mock the token
-			vi.spyOn(withingsSource as any, 'getToken').mockResolvedValue({
+			vi.spyOn(withingsSource as MockedWithingsSource, 'getToken').mockResolvedValue({
 				access_token: 'test-token',
 				refresh_token: 'refresh-token',
 				expires_at: new Date(Date.now() + 3600000)
@@ -150,7 +159,7 @@ describe('WithingsSource', () => {
 
 		it('should handle API response with missing body', async () => {
 			// Mock the token
-			vi.spyOn(withingsSource as any, 'getToken').mockResolvedValue({
+			vi.spyOn(withingsSource as MockedWithingsSource, 'getToken').mockResolvedValue({
 				access_token: 'test-token',
 				refresh_token: 'refresh-token',
 				expires_at: new Date(Date.now() + 3600000)
@@ -182,7 +191,7 @@ describe('WithingsSource', () => {
 
 		it('should handle API response with missing measuregrps', async () => {
 			// Mock the token
-			vi.spyOn(withingsSource as any, 'getToken').mockResolvedValue({
+			vi.spyOn(withingsSource as MockedWithingsSource, 'getToken').mockResolvedValue({
 				access_token: 'test-token',
 				refresh_token: 'refresh-token',
 				expires_at: new Date(Date.now() + 3600000)
@@ -216,7 +225,7 @@ describe('WithingsSource', () => {
 
 		it('should throw error when API returns error status - FIXED BUG TEST', async () => {
 			// Mock the token
-			vi.spyOn(withingsSource as any, 'getToken').mockResolvedValue({
+			vi.spyOn(withingsSource as MockedWithingsSource, 'getToken').mockResolvedValue({
 				access_token: 'test-token',
 				refresh_token: 'refresh-token',
 				expires_at: new Date(Date.now() + 3600000)
@@ -244,7 +253,7 @@ describe('WithingsSource', () => {
 
 		it('should throw error when token is expired - FIXED BUG TEST', async () => {
 			// Mock the token
-			vi.spyOn(withingsSource as any, 'getToken').mockResolvedValue({
+			vi.spyOn(withingsSource as MockedWithingsSource, 'getToken').mockResolvedValue({
 				access_token: 'expired-token',
 				refresh_token: 'refresh-token',
 				expires_at: new Date(Date.now() + 3600000)
@@ -272,7 +281,7 @@ describe('WithingsSource', () => {
 
 		it('should throw error when permissions are insufficient - FIXED BUG TEST', async () => {
 			// Mock the token
-			vi.spyOn(withingsSource as any, 'getToken').mockResolvedValue({
+			vi.spyOn(withingsSource as MockedWithingsSource, 'getToken').mockResolvedValue({
 				access_token: 'valid-token',
 				refresh_token: 'refresh-token',
 				expires_at: new Date(Date.now() + 3600000)
