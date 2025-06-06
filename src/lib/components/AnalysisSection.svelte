@@ -4,6 +4,7 @@
 	import type { ProcessedDataPoint } from '$lib/utils/dataProcessing';
 	import { processBodyCompositionData } from '$lib/utils/dataProcessing';
 	import HistoricalDataChart from './charts/HistoricalDataChart.svelte';
+	import AnalysisSettings from './AnalysisSettings.svelte';
 
 	// Global data state - precomputed once and shared across all charts
 	let rawData: BodyCompositionRow[] = [];
@@ -12,7 +13,10 @@
 	let error = '';
 	let abortController: AbortController | null = null;
 
-	// Reactive processed data with outlier removal and weighted averaging enabled
+	// Settings state
+	let weightedAverageWindow = 7; // Default value
+
+	// Reactive processed data with dynamic weighted averaging window
 	// This is the SINGLE place where data preprocessing happens to avoid double processing
 	$: globalProcessedData = processBodyCompositionData(rawData, {
 		includeIncompleteData: true,
@@ -21,7 +25,7 @@
 		outlierDetectionWindow: 15,
 		outlierThreshold: 3.5,
 		useWeightedAverage: true,
-		weightedAverageWindow: 4
+		weightedAverageWindow: weightedAverageWindow
 	});
 
 	onMount(() => {
@@ -101,43 +105,60 @@
 			dataKey: 'hydration' as keyof ProcessedDataPoint
 		}
 	};
+
+	// Handle settings changes from AnalysisSettings component
+	function handleSettingsChange(event: CustomEvent<{ weightedAverageWindow: number }>) {
+		weightedAverageWindow = event.detail.weightedAverageWindow;
+	}
 </script>
 
-<div class="analysis-container">
-	{#if loading}
+{#if loading}
+	<div class="analysis-container">
 		<div class="loading-section">
 			<div class="loading-spinner"></div>
 			<p>Loading data...</p>
 		</div>
-	{:else if error}
+	</div>
+{:else if error}
+	<div class="analysis-container">
 		<div class="error-container">
 			<p class="feedback error">{error}</p>
 			<button class="btn secondary" on:click={loadData}>Retry</button>
 		</div>
-	{:else}
-		<!-- Weight vs Body Fat Chart -->
-		<HistoricalDataChart
-			data={globalProcessedData}
-			title="Weight & Body Fat Trends"
-			leftAxisConfig={weightVsBodyFatConfig.leftAxis}
-			rightAxisConfig={weightVsBodyFatConfig.rightAxis}
-			height={600}
-			initialWindowDays={28}
-		/>
+	</div>
+{:else}
+	<div class="analysis-columns">
+		<!-- Settings Column -->
+		<div class="settings-column">
+			<AnalysisSettings bind:weightedAverageWindow on:settingsChange={handleSettingsChange} />
+		</div>
 
-		<!-- Placeholder for future charts -->
-		<!-- 
-		<HistoricalDataChart
-			data={globalProcessedData}
-			title="Muscle Mass & Hydration Trends"
-			leftAxisConfig={_muscleMassVsHydrationConfig.leftAxis}
-			rightAxisConfig={_muscleMassVsHydrationConfig.rightAxis}
-			height={400}
-			initialWindowDays={28}
-		/>
-		-->
-	{/if}
-</div>
+		<!-- Charts Column -->
+		<div class="charts-column">
+			<!-- Weight vs Body Fat Chart -->
+			<HistoricalDataChart
+				data={globalProcessedData}
+				title="Historical Overview"
+				leftAxisConfig={weightVsBodyFatConfig.leftAxis}
+				rightAxisConfig={weightVsBodyFatConfig.rightAxis}
+				height={600}
+				initialWindowDays={28}
+			/>
+
+			<!-- Placeholder for future charts -->
+			<!-- 
+			<HistoricalDataChart
+				data={globalProcessedData}
+				title="Muscle Mass & Hydration Trends"
+				leftAxisConfig={_muscleMassVsHydrationConfig.leftAxis}
+				rightAxisConfig={_muscleMassVsHydrationConfig.rightAxis}
+				height={400}
+				initialWindowDays={28}
+			/>
+			-->
+		</div>
+	</div>
+{/if}
 
 <style>
 	.analysis-container {

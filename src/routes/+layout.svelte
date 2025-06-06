@@ -60,7 +60,7 @@
 		{:else}
 			<TabNavigation {activeTab} />
 
-			<div class="tab-content">
+			<div class="tab-content" class:analysis-layout={activeTab === 'analysis'}>
 				<slot />
 			</div>
 		{/if}

@@ -174,27 +174,42 @@
 		const leftAxisData = data.map((d) => d[leftAxisConfig.dataKey] as number | null);
 		const rightAxisData = data.map((d) => d[rightAxisConfig.dataKey] as number | null);
 
-		// Calculate initial window (show the most recent period)
-		const totalDays = dates.length;
-		const windowSize = Math.min(initialWindowDays, totalDays);
+		// Get current zoom state if chart already exists, otherwise use initial window
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const currentOption = (chart as any).getOption();
+		let startPercent, endPercent;
 
-		let startIndex = 0;
-		let endIndex = totalDays - 1;
+		if (currentOption && currentOption.dataZoom && currentOption.dataZoom[0]) {
+			// Use current zoom state
+			startPercent = currentOption.dataZoom[0].start || 0;
+			endPercent = currentOption.dataZoom[0].end || 100;
+		} else {
+			// Calculate initial window (show the most recent period) - only for first load
+			const totalDays = dates.length;
+			const windowSize = Math.min(initialWindowDays, totalDays);
 
-		if (totalDays > windowSize) {
-			startIndex = totalDays - windowSize;
+			let startIndex = 0;
+			let endIndex = totalDays - 1;
+
+			if (totalDays > windowSize) {
+				startIndex = totalDays - windowSize;
+			}
+
+			// Convert to percentages for ECharts dataZoom
+			startPercent = totalDays > 1 ? (startIndex / (totalDays - 1)) * 100 : 0;
+			endPercent = totalDays > 1 ? (endIndex / (totalDays - 1)) * 100 : 100;
 		}
 
-		// Convert to percentages for ECharts dataZoom
-		const startPercent = totalDays > 1 ? (startIndex / (totalDays - 1)) * 100 : 0;
-		const endPercent = totalDays > 1 ? (endIndex / (totalDays - 1)) * 100 : 100;
+		// Calculate ranges based on the current or initial zoom window
+		const totalDays = dates.length;
+		const actualStartIndex = Math.floor((startPercent / 100) * (totalDays - 1));
+		const actualEndIndex = Math.floor((endPercent / 100) * (totalDays - 1));
 
-		// Calculate initial ranges using utility function
 		const { leftMin, leftMax, rightMin, rightMax } = calculateDualAxisRanges(
 			leftAxisData,
 			rightAxisData,
-			startIndex,
-			endIndex,
+			actualStartIndex,
+			actualEndIndex,
 			{
 				leftDefaults: { min: 0, max: 100 },
 				rightDefaults: { min: 0, max: 30 },
@@ -261,14 +276,14 @@
 			},
 			grid: [
 				{
-					left: '6%',
-					right: '6%',
+					left: '7%',
+					right: '7%',
 					top: 100,
 					height: '50%'
 				},
 				{
-					left: '6%',
-					right: '6%',
+					left: '7%',
+					right: '7%',
 					top: '75%',
 					height: '15%'
 				}
@@ -517,8 +532,9 @@
 			]
 		};
 
+		// Use merge mode (false) instead of replace mode (true) to preserve interactions
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(chart as any).setOption(option, true);
+		(chart as any).setOption(option, false);
 
 		// Add event listener for dataZoom to update y-axis ranges dynamically
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -618,7 +634,7 @@
 		border-radius: 1rem;
 		box-shadow: 0 12px 40px rgb(0 0 0 / 0.3);
 		padding: 1rem;
-		margin: 1rem 0;
+		margin: 0 0 1rem 0;
 	}
 
 	.chart {
