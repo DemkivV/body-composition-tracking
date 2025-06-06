@@ -1,13 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GET, PUT } from '../../routes/api/data/cycles/+server';
-import { readFile, writeFile, access } from 'fs/promises';
 
-// Mock the fs/promises module
-vi.mock('fs/promises');
+// Mock the dataWriter
+vi.mock('$lib/utils/data-writer.js', () => ({
+	dataWriter: {
+		readCSV: vi.fn(),
+		writeCSV: vi.fn()
+	}
+}));
 
-const mockReadFile = readFile as ReturnType<typeof vi.fn>;
-const mockWriteFile = writeFile as ReturnType<typeof vi.fn>;
-const mockAccess = access as ReturnType<typeof vi.fn>;
+import { dataWriter } from '$lib/utils/data-writer.js';
+
+const mockDataWriter = dataWriter as {
+	readCSV: ReturnType<typeof vi.fn>;
+	writeCSV: ReturnType<typeof vi.fn>;
+};
 
 describe('/api/data/cycles', () => {
 	beforeEach(() => {
@@ -21,8 +28,8 @@ describe('/api/data/cycles', () => {
 	describe('GET', () => {
 		it('should return initial data when file does not exist', async () => {
 			// Mock file not existing
-			mockAccess.mockRejectedValue(new Error('File not found'));
-			mockWriteFile.mockResolvedValue(undefined);
+			mockDataWriter.readCSV.mockRejectedValue(new Error('File not found'));
+			mockDataWriter.writeCSV.mockResolvedValue(undefined);
 
 			const response = await GET();
 			const result = await response.json();
@@ -41,8 +48,7 @@ describe('/api/data/cycles', () => {
 "2024-09-01","2024-09-20","Meso 2024.09",""
 "2024-10-01","2024-10-20","Meso 2024.10","Test comment"`;
 
-			mockAccess.mockResolvedValue(undefined);
-			mockReadFile.mockResolvedValue(csvData);
+			mockDataWriter.readCSV.mockResolvedValue(csvData);
 
 			const response = await GET();
 			const result = await response.json();
@@ -55,9 +61,8 @@ describe('/api/data/cycles', () => {
 		});
 
 		it('should handle empty file by generating initial data', async () => {
-			mockAccess.mockResolvedValue(undefined);
-			mockReadFile.mockResolvedValue('');
-			mockWriteFile.mockResolvedValue(undefined);
+			mockDataWriter.readCSV.mockResolvedValue('');
+			mockDataWriter.writeCSV.mockResolvedValue(undefined);
 
 			const response = await GET();
 			const result = await response.json();
@@ -80,7 +85,7 @@ describe('/api/data/cycles', () => {
 				}
 			];
 
-			mockWriteFile.mockResolvedValue(undefined);
+			mockDataWriter.writeCSV.mockResolvedValue(undefined);
 
 			const request = new Request('http://localhost', {
 				method: 'PUT',
@@ -91,10 +96,9 @@ describe('/api/data/cycles', () => {
 			const result = await response.json();
 
 			expect(result.success).toBe(true);
-			expect(mockWriteFile).toHaveBeenCalledWith(
-				expect.stringContaining('cycle_data.csv'),
-				expect.stringContaining('"Start Date","End Date","Cycle Name","Comments"'),
-				'utf-8'
+			expect(mockDataWriter.writeCSV).toHaveBeenCalledWith(
+				'cycle_data.csv',
+				expect.stringContaining('"Start Date","End Date","Cycle Name","Comments"')
 			);
 		});
 

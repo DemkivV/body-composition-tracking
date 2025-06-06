@@ -45,3 +45,9 @@ vite.config.ts.timestamp-*
 
 # App data
 data/
+
+# Test data (isolated from production)
+test-data/
+
+# Temporary test build directory
+.tmp/

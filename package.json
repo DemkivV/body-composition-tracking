@@ -12,9 +12,11 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
-		"test:unit": "vitest run",
-		"test": "npm run test:unit -- --run && npm run test:e2e",
-		"test:e2e": "playwright test"
+		"test:unit": "node scripts/test-unit-isolated.js",
+		"test:unit:dev": "vitest run",
+		"test": "npm run test:unit && npm run test:e2e",
+		"test:e2e": "playwright test",
+		"build:smart": "node scripts/e2e-build.js"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",

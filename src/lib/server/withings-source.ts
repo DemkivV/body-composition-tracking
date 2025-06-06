@@ -1,7 +1,5 @@
 import { getValidToken, type WithingsToken } from './withings-auth.js';
-import { getDataDir } from './config.js';
-import { promises as fs } from 'fs';
-import { join } from 'path';
+import { dataWriter } from '$lib/utils/data-writer.js';
 import type { BodyMeasurement, MeasurementData } from '../types/measurements.js';
 
 // Withings API endpoints
@@ -237,29 +235,26 @@ export class WithingsSource {
 	}
 
 	/**
-	 * Get CSV file path for Withings data
+	 * Get CSV filename for Withings data
 	 */
-	private getWithingsCsvPath(): string {
-		return join(getDataDir(), 'raw_data_withings_api.csv');
+	private getWithingsCsvFilename(): string {
+		return 'raw_data_withings_api.csv';
 	}
 
 	/**
-	 * Get CSV file path for unified app data
+	 * Get CSV filename for unified app data
 	 */
-	private getUnifiedCsvPath(): string {
-		return join(getDataDir(), 'raw_data_this_app.csv');
+	private getUnifiedCsvFilename(): string {
+		return 'raw_data_this_app.csv';
 	}
 
 	/**
 	 * Write measurements to CSV file
 	 */
 	private async writeToCSV(
-		filePath: string,
+		filename: string,
 		measurements: Map<Date, MeasurementData>
 	): Promise<void> {
-		// Ensure data directory exists
-		await fs.mkdir(getDataDir(), { recursive: true });
-
 		let csvContent =
 			'Date,"Weight (kg)","Fat mass (kg)","Bone mass (kg)","Muscle mass (kg)","Hydration (kg)",Comments\n';
 
@@ -282,7 +277,7 @@ export class WithingsSource {
 			csvContent += `${dateStr},${weight},${fatMass},${boneMass},${muscleMass},${hydration},\n`;
 		}
 
-		await fs.writeFile(filePath, csvContent, 'utf-8');
+		await dataWriter.writeCSV(filename, csvContent);
 	}
 
 	/**
@@ -309,17 +304,19 @@ export class WithingsSource {
 		this.applyMuscleMassCorrection(measurementsByTimestamp);
 
 		// Write data to CSV file
-		const csvPath = this.getWithingsCsvPath();
-		await this.writeToCSV(csvPath, measurementsByTimestamp);
+		const csvFilename = this.getWithingsCsvFilename();
+		await this.writeToCSV(csvFilename, measurementsByTimestamp);
 
-		console.log(`Successfully imported ${measurementsByTimestamp.size} measurements to ${csvPath}`);
+		console.log(
+			`Successfully imported ${measurementsByTimestamp.size} measurements to ${csvFilename}`
+		);
 		return measurementsByTimestamp.size;
 	}
 
 	/**
 	 * Load existing CSV data and return timestamps and measurements
 	 */
-	private async loadExistingCSVData(csvPath: string): Promise<{
+	private async loadExistingCSVData(csvFilename: string): Promise<{
 		existingTimestamps: Set<number>; // Use timestamps as numbers for precise comparison
 		existingData: Map<Date, MeasurementData>;
 	}> {
@@ -327,7 +324,7 @@ export class WithingsSource {
 		const existingData = new Map<Date, MeasurementData>();
 
 		try {
-			const csvContent = await fs.readFile(csvPath, 'utf-8');
+			const csvContent = await dataWriter.readCSV(csvFilename);
 			const lines = csvContent.split('\n');
 
 			if (lines.length <= 1) {
@@ -371,10 +368,10 @@ export class WithingsSource {
 	 * Get the most recent timestamp from existing CSV data
 	 */
 	async getMostRecentTimestamp(): Promise<Date | null> {
-		const csvPath = this.getWithingsCsvPath();
+		const csvFilename = this.getWithingsCsvFilename();
 
 		try {
-			const { existingTimestamps } = await this.loadExistingCSVData(csvPath);
+			const { existingTimestamps } = await this.loadExistingCSVData(csvFilename);
 
 			if (existingTimestamps.size === 0) {
 				return null;
@@ -418,8 +415,8 @@ export class WithingsSource {
 		this.applyMuscleMassCorrection(newMeasurements);
 
 		// Load existing data and merge with new data
-		const csvPath = this.getWithingsCsvPath();
-		const { existingTimestamps, existingData } = await this.loadExistingCSVData(csvPath);
+		const csvFilename = this.getWithingsCsvFilename();
+		const { existingTimestamps, existingData } = await this.loadExistingCSVData(csvFilename);
 
 		// Add new measurements that don't already exist
 		const allMeasurements = new Map(existingData);
@@ -434,10 +431,10 @@ export class WithingsSource {
 		}
 
 		// Write updated data to CSV
-		await this.writeToCSV(csvPath, allMeasurements);
+		await this.writeToCSV(csvFilename, allMeasurements);
 
 		console.log(
-			`Successfully imported ${newCount} new measurements (total: ${allMeasurements.size}) to ${csvPath}`
+			`Successfully imported ${newCount} new measurements (total: ${allMeasurements.size}) to ${csvFilename}`
 		);
 		return newCount;
 	}
@@ -446,26 +443,25 @@ export class WithingsSource {
 	 * Transform Withings CSV to unified format
 	 */
 	async transformToUnifiedFormat(): Promise<number> {
-		const withingsCsvPath = this.getWithingsCsvPath();
-		const unifiedCsvPath = this.getUnifiedCsvPath();
+		const withingsCsvFilename = this.getWithingsCsvFilename();
+		const unifiedCsvFilename = this.getUnifiedCsvFilename();
 
 		try {
-			// Check if Withings CSV exists
-			await fs.access(withingsCsvPath);
-		} catch {
-			console.log('No Withings CSV file found');
+			// Read Withings CSV content
+			const content = await dataWriter.readCSV(withingsCsvFilename);
+
+			// For now, just copy the content (in the future, this could merge multiple sources)
+			await dataWriter.writeCSV(unifiedCsvFilename, content);
+
+			// Count lines to return number of entries
+			const lines = content.split('\n').filter((line) => line.trim());
+			const entryCount = Math.max(0, lines.length - 1); // Subtract header
+
+			console.log(`Transformed ${entryCount} entries to unified format`);
+			return entryCount;
+		} catch (error) {
+			console.log('No Withings CSV file found or error reading it:', error);
 			return 0;
 		}
-
-		// For now, just copy the file (in the future, this could merge multiple sources)
-		await fs.copyFile(withingsCsvPath, unifiedCsvPath);
-
-		// Count lines to return number of entries
-		const content = await fs.readFile(unifiedCsvPath, 'utf-8');
-		const lines = content.split('\n').filter((line) => line.trim());
-		const entryCount = Math.max(0, lines.length - 1); // Subtract header
-
-		console.log(`Transformed ${entryCount} entries to unified format`);
-		return entryCount;
 	}
 }

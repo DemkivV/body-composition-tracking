@@ -5,6 +5,23 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
+	server: {
+		watch: {
+			ignored: [
+				'**/.tmp/**',
+				'**/test-results/**',
+				'**/test-data/**',
+				'**/e2e-build/**',
+				'**/coverage/**',
+				'**/.vitest/**',
+				// Ignore test files to prevent dev server reloading during test runs
+				'**/*.test.*',
+				'**/*.spec.*'
+			],
+			// Disable file watching in test environment
+			...(process.env.NODE_ENV === 'test' && { usePolling: false, interval: 0 })
+		}
+	},
 	build: {
 		// Set warning limit to 500KB (default) to catch any regressions
 		chunkSizeWarningLimit: 500

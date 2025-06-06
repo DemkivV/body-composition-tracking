@@ -73,8 +73,8 @@ async function setupCompleteMocks(page) {
 	await page.route('**/api/data/raw', async (route) => {
 		const method = route.request().method();
 		await route.fulfill({
-			json: { 
-				success: true, 
+			json: {
+				success: true,
 				data: [],
 				message: `Mock raw data endpoint (${method}) - no production access`
 			}
@@ -84,7 +84,7 @@ async function setupCompleteMocks(page) {
 	// Cycle data endpoints - prevent production file access
 	await page.route('**/api/data/cycles', async (route) => {
 		const method = route.request().method();
-		
+
 		if (method === 'GET') {
 			await route.fulfill({
 				json: {
@@ -109,32 +109,32 @@ async function setupCompleteMocks(page) {
 			});
 		} else if (method === 'POST') {
 			await route.fulfill({
-				json: { 
-					success: true, 
+				json: {
+					success: true,
 					id: Math.floor(Math.random() * 1000) + 100,
-					message: 'Cycle added successfully (test mode)' 
+					message: 'Cycle added successfully (test mode)'
 				}
 			});
 		} else if (method === 'PUT') {
 			await route.fulfill({
-				json: { 
+				json: {
 					success: true,
-					message: 'Cycle updated successfully (test mode)' 
+					message: 'Cycle updated successfully (test mode)'
 				}
 			});
 		} else if (method === 'DELETE') {
 			await route.fulfill({
-				json: { 
+				json: {
 					success: true,
-					message: 'Cycle deleted successfully (test mode)' 
+					message: 'Cycle deleted successfully (test mode)'
 				}
 			});
 		} else {
 			await route.fulfill({
 				status: 405,
-				json: { 
-					success: false, 
-					error: 'Method not allowed' 
+				json: {
+					success: false,
+					error: 'Method not allowed'
 				}
 			});
 		}
@@ -170,7 +170,7 @@ test.describe('Cycle Data Tab', () => {
 	test('should handle API failures gracefully without endless loading', async ({ page }) => {
 		// First set up complete mocks to prevent production access
 		await setupCompleteMocks(page);
-		
+
 		// Then override just the cycles API to fail for this test
 		await page.route('/api/data/cycles', async (route) => {
 			await route.fulfill({

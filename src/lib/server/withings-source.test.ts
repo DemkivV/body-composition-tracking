@@ -1,47 +1,38 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from 'vitest';
-import { WithingsSource } from './withings-source.js';
-import * as config from './config.js';
-import { join } from 'path';
-import { promises as fs } from 'fs';
+import { mockDataWriter } from '$lib/utils/test-data-writer.js';
 
-// Mock dependencies
-vi.mock('./config.js');
-vi.mock('fs', () => ({
-	promises: {
-		writeFile: vi.fn(),
-		readFile: vi.fn(),
-		mkdir: vi.fn(),
-		access: vi.fn(),
-		copyFile: vi.fn()
-	}
+// Mock the data writer module in this test file
+vi.mock('$lib/utils/data-writer.js', () => ({
+	dataWriter: mockDataWriter,
+	FileSystemDataWriter: vi.fn(),
+	DataWriter: vi.fn()
 }));
+
+// Mock the auth module
+vi.mock('./withings-auth.js', () => ({
+	getValidToken: vi.fn()
+}));
+
+// Import after mocking
+import { WithingsSource } from './withings-source.js';
+import { getValidToken } from './withings-auth.js';
 
 // Mock global fetch
 global.fetch = vi.fn();
 
-const mockGetDataDir = config.getDataDir as MockedFunction<typeof config.getDataDir>;
 const mockFetch = global.fetch as MockedFunction<typeof global.fetch>;
-const mockFsWriteFile = fs.writeFile as MockedFunction<typeof fs.writeFile>;
-const mockFsMkdir = fs.mkdir as MockedFunction<typeof fs.mkdir>;
+const mockGetValidToken = getValidToken as MockedFunction<typeof getValidToken>;
 
 // Store original console methods
 let originalConsoleLog: typeof console.log;
 let originalConsoleWarn: typeof console.warn;
-
-// Define interfaces for better type safety
-interface MockedWithingsSource {
-	getToken(): Promise<{
-		access_token: string;
-		refresh_token: string;
-		expires_at: Date;
-	}>;
-}
 
 describe('WithingsSource', () => {
 	let withingsSource: WithingsSource;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockDataWriter.clear();
 
 		// Mock console methods to suppress WithingsSource output during tests
 		originalConsoleLog = console.log;
@@ -50,11 +41,6 @@ describe('WithingsSource', () => {
 		console.warn = vi.fn();
 
 		withingsSource = new WithingsSource();
-
-		// Mock config
-		mockGetDataDir.mockReturnValue('/tmp/test-data');
-		mockFsMkdir.mockResolvedValue(undefined);
-		mockFsWriteFile.mockResolvedValue(undefined);
 	});
 
 	afterEach(() => {
@@ -66,10 +52,14 @@ describe('WithingsSource', () => {
 	describe('importAllDataToCSV', () => {
 		it('should create empty CSV when API returns successful response but no measurements', async () => {
 			// Mock the token
-			vi.spyOn(withingsSource as MockedWithingsSource, 'getToken').mockResolvedValue({
+			mockGetValidToken.mockResolvedValue({
 				access_token: 'test-token',
 				refresh_token: 'refresh-token',
-				expires_at: new Date(Date.now() + 3600000)
+				expires_at: Date.now() + 3600000,
+				token_type: 'Bearer',
+				expires_in: 3600,
+				scope: 'user.metrics',
+				userid: 12345
 			});
 
 			// Mock API response with status 0 (success) but empty measuregrps
@@ -90,20 +80,23 @@ describe('WithingsSource', () => {
 			// Should return 0 measurements
 			expect(result).toBe(0);
 
-			// Should still write CSV file with just headers
-			expect(mockFsWriteFile).toHaveBeenCalledWith(
-				join('/tmp/test-data', 'raw_data_withings_api.csv'),
-				'Date,"Weight (kg)","Fat mass (kg)","Bone mass (kg)","Muscle mass (kg)","Hydration (kg)",Comments\n',
-				'utf-8'
+			// Should write CSV file with just headers to mock data writer
+			const writeOp = mockDataWriter.expectWrite('raw_data_withings_api.csv');
+			expect(writeOp.content).toBe(
+				'Date,"Weight (kg)","Fat mass (kg)","Bone mass (kg)","Muscle mass (kg)","Hydration (kg)",Comments\n'
 			);
 		});
 
 		it('should create CSV with measurements when API returns valid data', async () => {
 			// Mock the token
-			vi.spyOn(withingsSource as MockedWithingsSource, 'getToken').mockResolvedValue({
+			mockGetValidToken.mockResolvedValue({
 				access_token: 'test-token',
 				refresh_token: 'refresh-token',
-				expires_at: new Date(Date.now() + 3600000)
+				expires_at: Date.now() + 3600000,
+				token_type: 'Bearer',
+				expires_in: 3600,
+				scope: 'user.metrics',
+				userid: 12345
 			});
 
 			// Mock API response with actual measurement data
@@ -135,34 +128,31 @@ describe('WithingsSource', () => {
 			// Should return 1 measurement
 			expect(result).toBe(1);
 
-			// Should write CSV file with header and data
-			expect(mockFsWriteFile).toHaveBeenCalledWith(
-				join('/tmp/test-data', 'raw_data_withings_api.csv'),
-				expect.stringContaining('Date,"Weight (kg)"'),
-				'utf-8'
-			);
-
-			// Get the actual CSV content that was written
-			const csvContent = mockFsWriteFile.mock.calls[0][1] as string;
+			// Should write CSV file with header and data to mock data writer
+			const writeOp = mockDataWriter.expectWrite('raw_data_withings_api.csv');
 
 			// Should contain the header
-			expect(csvContent).toContain(
+			expect(writeOp.content).toContain(
 				'Date,"Weight (kg)","Fat mass (kg)","Bone mass (kg)","Muscle mass (kg)","Hydration (kg)",Comments'
 			);
 
 			// Should contain measurement data
-			expect(csvContent).toContain('75.50'); // Weight
-			expect(csvContent).toContain('15.20'); // Fat mass
-			expect(csvContent).toContain('3.10'); // Bone mass
-			expect(csvContent).toContain('24.40'); // Hydration
+			expect(writeOp.content).toContain('75.50'); // Weight
+			expect(writeOp.content).toContain('15.20'); // Fat mass
+			expect(writeOp.content).toContain('3.10'); // Bone mass
+			expect(writeOp.content).toContain('24.40'); // Hydration
 		});
 
 		it('should handle API response with missing body', async () => {
 			// Mock the token
-			vi.spyOn(withingsSource as MockedWithingsSource, 'getToken').mockResolvedValue({
+			mockGetValidToken.mockResolvedValue({
 				access_token: 'test-token',
 				refresh_token: 'refresh-token',
-				expires_at: new Date(Date.now() + 3600000)
+				expires_at: Date.now() + 3600000,
+				token_type: 'Bearer',
+				expires_in: 3600,
+				scope: 'user.metrics',
+				userid: 12345
 			});
 
 			// Mock API response without body (could be a bug condition)
@@ -181,28 +171,29 @@ describe('WithingsSource', () => {
 			// Should return 0 measurements (graceful handling)
 			expect(result).toBe(0);
 
-			// Should still write empty CSV file
-			expect(mockFsWriteFile).toHaveBeenCalledWith(
-				join('/tmp/test-data', 'raw_data_withings_api.csv'),
-				'Date,"Weight (kg)","Fat mass (kg)","Bone mass (kg)","Muscle mass (kg)","Hydration (kg)",Comments\n',
-				'utf-8'
+			// Should write empty CSV file to mock data writer
+			const writeOp = mockDataWriter.expectWrite('raw_data_withings_api.csv');
+			expect(writeOp.content).toBe(
+				'Date,"Weight (kg)","Fat mass (kg)","Bone mass (kg)","Muscle mass (kg)","Hydration (kg)",Comments\n'
 			);
 		});
 
 		it('should handle API response with missing measuregrps', async () => {
 			// Mock the token
-			vi.spyOn(withingsSource as MockedWithingsSource, 'getToken').mockResolvedValue({
+			mockGetValidToken.mockResolvedValue({
 				access_token: 'test-token',
 				refresh_token: 'refresh-token',
-				expires_at: new Date(Date.now() + 3600000)
+				expires_at: Date.now() + 3600000,
+				token_type: 'Bearer',
+				expires_in: 3600,
+				scope: 'user.metrics',
+				userid: 12345
 			});
 
 			// Mock API response with body but no measuregrps
 			const apiResponse = {
 				status: 0,
-				body: {
-					// No measuregrps property
-				}
+				body: {}
 			};
 
 			mockFetch.mockResolvedValue({
@@ -215,96 +206,102 @@ describe('WithingsSource', () => {
 			// Should return 0 measurements (graceful handling)
 			expect(result).toBe(0);
 
-			// Should still write empty CSV file
-			expect(mockFsWriteFile).toHaveBeenCalledWith(
-				join('/tmp/test-data', 'raw_data_withings_api.csv'),
-				'Date,"Weight (kg)","Fat mass (kg)","Bone mass (kg)","Muscle mass (kg)","Hydration (kg)",Comments\n',
-				'utf-8'
+			// Should write empty CSV file to mock data writer
+			const writeOp = mockDataWriter.expectWrite('raw_data_withings_api.csv');
+			expect(writeOp.content).toBe(
+				'Date,"Weight (kg)","Fat mass (kg)","Bone mass (kg)","Muscle mass (kg)","Hydration (kg)",Comments\n'
 			);
 		});
 
 		it('should throw error when API returns error status - FIXED BUG TEST', async () => {
 			// Mock the token
-			vi.spyOn(withingsSource as MockedWithingsSource, 'getToken').mockResolvedValue({
+			mockGetValidToken.mockResolvedValue({
 				access_token: 'test-token',
 				refresh_token: 'refresh-token',
-				expires_at: new Date(Date.now() + 3600000)
+				expires_at: Date.now() + 3600000,
+				token_type: 'Bearer',
+				expires_in: 3600,
+				scope: 'user.metrics',
+				userid: 12345
 			});
 
-			// Mock API response with error status
+			// Mock API error response
 			const apiResponse = {
-				status: 401, // Unauthorized
-				error: 'The access token provided is invalid'
+				status: 500,
+				error: 'Internal server error'
 			};
 
 			mockFetch.mockResolvedValue({
-				ok: true, // HTTP response is OK, but Withings API returns error in JSON
+				ok: true,
 				json: () => Promise.resolve(apiResponse)
 			} as Response);
 
-			// Now it should throw an error instead of creating empty CSV
-			await expect(withingsSource.importAllDataToCSV()).rejects.toThrow(
-				'Authentication expired. Please re-authenticate and try again'
-			);
+			await expect(withingsSource.importAllDataToCSV()).rejects.toThrow('Internal server error');
 
-			// Should not write any CSV file
-			expect(mockFsWriteFile).not.toHaveBeenCalled();
+			// Should not write any file when API fails
+			expect(mockDataWriter.writeOperations).toHaveLength(0);
 		});
 
 		it('should throw error when token is expired - FIXED BUG TEST', async () => {
 			// Mock the token
-			vi.spyOn(withingsSource as MockedWithingsSource, 'getToken').mockResolvedValue({
-				access_token: 'expired-token',
+			mockGetValidToken.mockResolvedValue({
+				access_token: 'test-token',
 				refresh_token: 'refresh-token',
-				expires_at: new Date(Date.now() + 3600000)
+				expires_at: Date.now() + 3600000,
+				token_type: 'Bearer',
+				expires_in: 3600,
+				scope: 'user.metrics',
+				userid: 12345
 			});
 
-			// Mock API response with expired token error
+			// Mock token expiration error
 			const apiResponse = {
-				status: 601, // Token expired
-				error: 'Access token expired'
+				status: 401,
+				error: 'Token expired'
 			};
 
 			mockFetch.mockResolvedValue({
-				ok: true, // HTTP response is OK, but Withings API returns error in JSON
+				ok: true,
 				json: () => Promise.resolve(apiResponse)
 			} as Response);
 
-			// Now it should throw an error instead of creating empty CSV
 			await expect(withingsSource.importAllDataToCSV()).rejects.toThrow(
 				'Authentication expired. Please re-authenticate and try again'
 			);
 
-			// Should not write any CSV file
-			expect(mockFsWriteFile).not.toHaveBeenCalled();
+			// Should not write any file when authentication fails
+			expect(mockDataWriter.writeOperations).toHaveLength(0);
 		});
 
 		it('should throw error when permissions are insufficient - FIXED BUG TEST', async () => {
 			// Mock the token
-			vi.spyOn(withingsSource as MockedWithingsSource, 'getToken').mockResolvedValue({
-				access_token: 'valid-token',
+			mockGetValidToken.mockResolvedValue({
+				access_token: 'test-token',
 				refresh_token: 'refresh-token',
-				expires_at: new Date(Date.now() + 3600000)
+				expires_at: Date.now() + 3600000,
+				token_type: 'Bearer',
+				expires_in: 3600,
+				scope: 'user.metrics',
+				userid: 12345
 			});
 
-			// Mock API response with permission error
+			// Mock permissions error
 			const apiResponse = {
-				status: 603, // Permission denied
-				error: 'Insufficient scope for this action'
+				status: 603,
+				error: 'Insufficient permissions'
 			};
 
 			mockFetch.mockResolvedValue({
-				ok: true, // HTTP response is OK, but Withings API returns error in JSON
+				ok: true,
 				json: () => Promise.resolve(apiResponse)
 			} as Response);
 
-			// Now it should throw an error instead of creating empty CSV
 			await expect(withingsSource.importAllDataToCSV()).rejects.toThrow(
 				'Insufficient permissions for this action'
 			);
 
-			// Should not write any CSV file
-			expect(mockFsWriteFile).not.toHaveBeenCalled();
+			// Should not write any file when permissions are insufficient
+			expect(mockDataWriter.writeOperations).toHaveLength(0);
 		});
 	});
 });

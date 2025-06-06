@@ -85,22 +85,51 @@ npm run build
 
 ## Testing
 
-The project includes comprehensive test coverage:
+The project includes comprehensive test coverage with an **isolated testing environment** that prevents interference with your development setup:
 
-- **Unit Tests**: 28 tests covering stores, services, and components
-- **E2E Tests**: 7 tests covering complete user workflows
+- **Unit Tests**: 150 tests covering stores, services, and components
+- **E2E Tests**: 44 tests covering complete user workflows
 - **Test Runner**: Vitest for unit tests, Playwright for E2E
+- **Isolated Environment**: Tests run in `.tmp/test-build/` to avoid dev server conflicts
+
+### Test Commands
 
 ```bash
-# Run all tests
+# Run all tests (unit + E2E) in isolated environment
 npm test
 
-# Run tests in watch mode
+# Run unit tests only (isolated)
 npm run test:unit
 
-# Run E2E tests
+# Run unit tests in dev environment (for development)
+npm run test:unit:dev
+
+# Run E2E tests only
 npm run test:e2e
 ```
+
+### Optimized Testing Performance
+
+The testing setup uses an **isolated build environment** for maximum performance and safety:
+
+- **Fast Re-runs**: Test builds are cached in `.tmp/test-build/` for instant startup
+- **No Dev Interference**: Your development server at `localhost:5173` is never affected
+- **Data Safety**: Tests can only access temporary data, never your production files
+- **Parallel Execution**: All 44 E2E tests run in parallel on 12 cores in ~11 seconds
+
+### Managing Test Builds
+
+The test build is automatically cached for performance:
+
+```bash
+# Force a fresh test build (if needed)
+rm -rf .tmp
+
+# Or on Windows
+rmdir /s .tmp
+```
+
+**⚠️ Note**: The `.tmp/` directory contains cached test builds and is kept for faster test re-runs. It can be safely deleted to force a fresh build, but will slow down the next test run.
 
 ## Architecture
 

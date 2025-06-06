@@ -228,7 +228,9 @@ async function setupAuthenticatedMocks(page) {
 	await page.route('**/api/**', async (route) => {
 		const url = route.request().url();
 		const method = route.request().method();
-		console.log(`[TEST] Catch-all intercepted in setupAuthenticatedMocks auth.spec.ts: ${method} ${url}`);
+		console.log(
+			`[TEST] Catch-all intercepted in setupAuthenticatedMocks auth.spec.ts: ${method} ${url}`
+		);
 		await route.fulfill({
 			status: 200,
 			contentType: 'application/json',
@@ -658,7 +660,9 @@ test.describe('Authentication Flow', () => {
 
 		// Check that error state is displayed for API failure - use actual error message
 		await expect(authSection.locator('.feedback.error')).toBeVisible();
-		await expect(authSection.locator('.feedback')).toContainText('Failed to check authentication status');
+		await expect(authSection.locator('.feedback')).toContainText(
+			'Failed to check authentication status'
+		);
 	});
 
 	test('should handle authentication API error gracefully', async ({ page }) => {

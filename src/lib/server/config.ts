@@ -1,6 +1,5 @@
 import { env } from '$env/dynamic/private';
-import { promises as fs } from 'fs';
-import { join } from 'path';
+import { dataWriter } from '$lib/utils/data-writer.js';
 
 interface WithingsConfig {
 	clientId?: string;
@@ -12,9 +11,7 @@ interface AppConfig {
 	withings?: WithingsConfig;
 }
 
-// Use a data directory for user configuration and data storage
-const DATA_DIR = join(process.cwd(), 'data');
-const CONFIG_FILE = join(DATA_DIR, 'config.json');
+const CONFIG_FILENAME = 'config.json';
 
 // Default configuration
 const DEFAULT_CONFIG: AppConfig = {
@@ -24,23 +21,12 @@ const DEFAULT_CONFIG: AppConfig = {
 };
 
 /**
- * Ensure data directory exists
- */
-async function ensureDataDir(): Promise<void> {
-	try {
-		await fs.mkdir(DATA_DIR, { recursive: true });
-	} catch (_error) {
-		// Directory might already exist, that's fine
-	}
-}
-
-/**
  * Load configuration from file
  */
 async function loadConfig(): Promise<AppConfig> {
 	try {
-		await ensureDataDir();
-		const configData = await fs.readFile(CONFIG_FILE, 'utf-8');
+		await dataWriter.ensureDataDir();
+		const configData = await dataWriter.readCSV(CONFIG_FILENAME);
 		const config = JSON.parse(configData);
 
 		// Merge with defaults
@@ -62,8 +48,7 @@ async function loadConfig(): Promise<AppConfig> {
  * Save configuration to file
  */
 async function saveConfig(config: AppConfig): Promise<void> {
-	await ensureDataDir();
-	await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
+	await dataWriter.writeCSV(CONFIG_FILENAME, JSON.stringify(config, null, 2));
 }
 
 /**
@@ -115,5 +100,5 @@ export async function hasWithingsCredentials(): Promise<boolean> {
  * Get data directory path
  */
 export function getDataDir(): string {
-	return DATA_DIR;
+	return dataWriter.getDataPath('');
 }
