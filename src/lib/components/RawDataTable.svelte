@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import type { BodyCompositionRow, DataApiResponse } from '$lib/types/data';
 
 	let data: BodyCompositionRow[] = [];
@@ -7,6 +7,7 @@
 	let error = '';
 	let saving = false;
 	let saveTimeout: number | null = null;
+	let abortController: AbortController | null = null;
 
 	const headers = [
 		{ key: 'Date' as keyof BodyCompositionRow, label: 'Date', type: 'datetime-local' },
@@ -26,10 +27,34 @@
 		await loadData();
 	});
 
+	onDestroy(() => {
+		// Clear any pending timeouts to prevent dangling saves
+		if (saveTimeout) {
+			clearTimeout(saveTimeout);
+			saveTimeout = null;
+		}
+
+		// Cancel any in-flight requests
+		if (abortController) {
+			abortController.abort();
+			abortController = null;
+		}
+	});
+
 	async function loadData() {
 		try {
 			loading = true;
-			const response = await fetch('/api/data/raw');
+
+			// Cancel any previous requests
+			if (abortController) {
+				abortController.abort();
+			}
+
+			abortController = new AbortController();
+
+			const response = await fetch('/api/data/raw', {
+				signal: abortController.signal
+			});
 			const result: DataApiResponse = await response.json();
 
 			if (result.success && result.data) {
@@ -38,10 +63,15 @@
 				error = result.error || 'Failed to load data';
 			}
 		} catch (err) {
+			// Don't show error if request was aborted (component cleanup)
+			if (err instanceof Error && err.name === 'AbortError') {
+				return;
+			}
 			error = 'Failed to fetch data';
 			console.error('Error loading data:', err);
 		} finally {
 			loading = false;
+			abortController = null;
 		}
 	}
 
@@ -50,6 +80,14 @@
 
 		try {
 			saving = true;
+
+			// Cancel any previous requests
+			if (abortController) {
+				abortController.abort();
+			}
+
+			abortController = new AbortController();
+
 			// Sort data by date before saving
 			const sortedData = sortDataByDate([...data]);
 
@@ -58,7 +96,8 @@
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify({ data: sortedData })
+				body: JSON.stringify({ data: sortedData }),
+				signal: abortController.signal
 			});
 
 			const result = await response.json();
@@ -69,10 +108,15 @@
 				data = sortedData;
 			}
 		} catch (err) {
+			// Don't show error if request was aborted (component cleanup)
+			if (err instanceof Error && err.name === 'AbortError') {
+				return;
+			}
 			error = 'Failed to save data';
 			console.error('Error saving data:', err);
 		} finally {
 			saving = false;
+			abortController = null;
 		}
 	}
 

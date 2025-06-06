@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import type { BodyCompositionRow, DataApiResponse } from '$lib/types/data';
 	import type { ProcessedDataPoint } from '$lib/utils/dataProcessing';
 	import { processBodyCompositionData } from '$lib/utils/dataProcessing';
@@ -10,6 +10,7 @@
 	let globalProcessedData: ProcessedDataPoint[] = [];
 	let loading = true;
 	let error = '';
+	let abortController: AbortController | null = null;
 
 	// Reactive processed data with outlier removal and weighted averaging enabled
 	// This is the SINGLE place where data preprocessing happens to avoid double processing
@@ -27,10 +28,28 @@
 		loadData();
 	});
 
+	onDestroy(() => {
+		// Cancel any in-flight requests
+		if (abortController) {
+			abortController.abort();
+			abortController = null;
+		}
+	});
+
 	async function loadData() {
 		try {
 			loading = true;
-			const response = await fetch('/api/data/raw');
+
+			// Cancel any previous requests
+			if (abortController) {
+				abortController.abort();
+			}
+
+			abortController = new AbortController();
+
+			const response = await fetch('/api/data/raw', {
+				signal: abortController.signal
+			});
 			const result: DataApiResponse = await response.json();
 
 			if (result.success && result.data) {
@@ -39,10 +58,15 @@
 				error = result.error || 'Failed to load data';
 			}
 		} catch (err) {
+			// Don't show error if request was aborted (component cleanup)
+			if (err instanceof Error && err.name === 'AbortError') {
+				return;
+			}
 			error = 'Failed to fetch data';
 			console.error('Error loading data:', err);
 		} finally {
 			loading = false;
+			abortController = null;
 		}
 	}
 
