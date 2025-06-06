@@ -2,7 +2,22 @@ import { test, expect } from '@playwright/test';
 
 // Isolated mock setup functions to prevent race conditions
 async function setupBaseMocks(page) {
-	// Mock configuration check - always first
+	// IMPORTANT: Catch-all must come FIRST to prevent production access
+	await page.route('**/api/**', async (route) => {
+		const url = route.request().url();
+		const method = route.request().method();
+		console.log(`[TEST] Catch-all intercepted in setupBaseMocks: ${method} ${url}`);
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: false,
+				error: `Mock endpoint - test intercepted ${method} call to ${url}`
+			})
+		});
+	});
+
+	// Specific mocks override the catch-all
 	await page.route('/api/auth/configure', async (route) => {
 		await route.fulfill({
 			status: 200,
@@ -14,7 +29,6 @@ async function setupBaseMocks(page) {
 		});
 	});
 
-	// Mock auth status check - not authenticated initially
 	await page.route('/api/auth/status', async (route) => {
 		await route.fulfill({
 			status: 200,
@@ -27,7 +41,6 @@ async function setupBaseMocks(page) {
 		});
 	});
 
-	// Mock has existing data check - no data initially
 	await page.route('/api/import/has-data', async (route) => {
 		await route.fulfill({
 			status: 200,
@@ -115,10 +128,73 @@ async function setupBaseMocks(page) {
 			});
 		}
 	});
+
+	await page.route('/api/auth/authenticate', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: false,
+				error: 'Mock auth endpoint - no real authentication in tests'
+			})
+		});
+	});
+
+	await page.route('/api/auth/logout', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: true,
+				message: 'Logged out (test mode)'
+			})
+		});
+	});
+
+	await page.route('**/api/data/cycles', async (route) => {
+		const method = route.request().method();
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: true,
+				data: [],
+				message: `Mock cycle endpoint (${method}) - no production access`
+			})
+		});
+	});
+
+	await page.route('**/api/analysis/**', async (route) => {
+		const method = route.request().method();
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: true,
+				data: [],
+				message: `Mock analysis endpoint (${method}) - no production access`
+			})
+		});
+	});
 }
 
 async function setupAuthenticatedMocks(page) {
-	// Mock configuration check
+	// IMPORTANT: Catch-all must come FIRST to prevent production access
+	await page.route('**/api/**', async (route) => {
+		const url = route.request().url();
+		const method = route.request().method();
+		console.log(`[TEST] Catch-all intercepted in setupAuthenticatedMocks: ${method} ${url}`);
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: false,
+				error: `Mock endpoint - test intercepted ${method} call to ${url}`
+			})
+		});
+	});
+
+	// Specific mocks override the catch-all
 	await page.route('/api/auth/configure', async (route) => {
 		await route.fulfill({
 			status: 200,
@@ -130,7 +206,6 @@ async function setupAuthenticatedMocks(page) {
 		});
 	});
 
-	// Mock authenticated state
 	await page.route('/api/auth/status', async (route) => {
 		await route.fulfill({
 			status: 200,
@@ -143,7 +218,6 @@ async function setupAuthenticatedMocks(page) {
 		});
 	});
 
-	// Mock has existing data check
 	await page.route('/api/import/has-data', async (route) => {
 		await route.fulfill({
 			status: 200,
@@ -201,6 +275,54 @@ async function setupAuthenticatedMocks(page) {
 				})
 			});
 		}
+	});
+
+	await page.route('/api/auth/authenticate', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: false,
+				error: 'Mock auth endpoint - no real authentication in tests'
+			})
+		});
+	});
+
+	await page.route('/api/auth/logout', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: true,
+				message: 'Logged out (test mode)'
+			})
+		});
+	});
+
+	await page.route('**/api/data/cycles', async (route) => {
+		const method = route.request().method();
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: true,
+				data: [],
+				message: `Mock cycle endpoint (${method}) - no production access`
+			})
+		});
+	});
+
+	await page.route('**/api/analysis/**', async (route) => {
+		const method = route.request().method();
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: true,
+				data: [],
+				message: `Mock analysis endpoint (${method}) - no production access`
+			})
+		});
 	});
 }
 
@@ -351,8 +473,8 @@ test.describe('Import Workflow', () => {
 		// Check that page loads correctly
 		await expect(page.locator('h1')).toContainText('Body Composition Tracker');
 
-		// Check that data import tab is active by default
-		await expect(page.locator('[data-tab="data-import"]')).toHaveClass(/active/);
+		// Check that body comp data tab is active by default
+		await expect(page.locator('[data-tab="body-comp-data"]')).toHaveClass(/active/);
 
 		// Check that data source is set to Withings
 		await expect(page.locator('#data-source')).toHaveValue('withings');
@@ -549,11 +671,11 @@ test.describe('Import Workflow', () => {
 		await setupBaseMocks(page);
 		await navigateAndWaitForTab(page);
 
-		// Click on raw data tab
-		await page.locator('[data-tab="raw-data"]').click();
+		// Click on cycle data tab
+		await page.locator('[data-tab="cycle-data"]').click();
 
-		// Check that raw data content is shown
-		await expect(page.locator('h2:has-text("Raw Data")')).toBeVisible();
+		// Check that cycle data content is shown
+		await expect(page.locator('h2:has-text("Cycle Data")')).toBeVisible();
 		await expect(page.locator('.data-container')).toBeVisible();
 
 		// Click on analysis tab
@@ -563,8 +685,8 @@ test.describe('Import Workflow', () => {
 		await expect(page.locator('.chart-container').first()).toBeVisible({ timeout: 10000 });
 		await expect(page.locator('.chart').first()).toBeVisible();
 
-		// Go back to data import tab
-		await page.locator('[data-tab="data-import"]').click();
+		// Go back to body comp data tab
+		await page.locator('[data-tab="body-comp-data"]').click();
 
 		// Check that import section is shown again
 		await expect(page.locator('#data-source')).toBeVisible();
@@ -579,7 +701,7 @@ test.describe('Import Workflow', () => {
 		await expect(page.locator('h2:has-text("Withings API Configuration")')).toBeVisible();
 
 		// Tabs should not be visible
-		await expect(page.locator('[data-tab="data-import"]')).not.toBeVisible();
+		await expect(page.locator('[data-tab="body-comp-data"]')).not.toBeVisible();
 	});
 
 	test('should handle authentication errors gracefully', async ({ page }) => {

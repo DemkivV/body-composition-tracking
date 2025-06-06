@@ -89,7 +89,7 @@
 </script>
 
 <DataTable
-	title="Raw Data"
+	title="Data"
 	apiEndpoint="/api/data/raw"
 	{headers}
 	createNewRow={createNewBodyCompositionRow}

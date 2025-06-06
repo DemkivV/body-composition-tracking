@@ -1,8 +1,23 @@
 import { test, expect } from '@playwright/test';
 
-// Isolated mock setup functions to prevent race conditions
+// Isolated mock setup functions to prevent race conditions and production file access
 async function setupBaseMocks(page) {
-	// Mock configuration check - always first
+	// IMPORTANT: Catch-all must come FIRST to prevent production access
+	await page.route('**/api/**', async (route) => {
+		const url = route.request().url();
+		const method = route.request().method();
+		console.log(`[TEST] Catch-all intercepted in auth.spec.ts: ${method} ${url}`);
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: false,
+				error: `Mock endpoint - test intercepted ${method} call to ${url}`
+			})
+		});
+	});
+
+	// Specific mocks override the catch-all
 	await page.route('/api/auth/configure', async (route) => {
 		await route.fulfill({
 			status: 200,
@@ -14,7 +29,6 @@ async function setupBaseMocks(page) {
 		});
 	});
 
-	// Mock auth status check
 	await page.route('/api/auth/status', async (route) => {
 		await route.fulfill({
 			status: 200,
@@ -26,12 +40,105 @@ async function setupBaseMocks(page) {
 		});
 	});
 
-	// Mock has existing data check
+	await page.route('/api/auth/authenticate', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: false,
+				error: 'Mock auth endpoint - no real authentication in tests'
+			})
+		});
+	});
+
+	await page.route('/api/auth/logout', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: true,
+				message: 'Logged out (test mode)'
+			})
+		});
+	});
+
+	await page.route('/api/auth/callback', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: false,
+				error: 'Mock callback endpoint - no real callback in tests'
+			})
+		});
+	});
+
 	await page.route('/api/import/has-data', async (route) => {
 		await route.fulfill({
 			status: 200,
 			contentType: 'application/json',
 			body: JSON.stringify({ hasData: false })
+		});
+	});
+
+	await page.route('/api/import', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: false,
+				error: 'Mock import endpoint - no real import in tests'
+			})
+		});
+	});
+
+	await page.route('/api/import/all', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: false,
+				error: 'Mock import/all endpoint - no real import in tests'
+			})
+		});
+	});
+
+	await page.route('/api/import/intelligent', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: false,
+				error: 'Mock import/intelligent endpoint - no real import in tests'
+			})
+		});
+	});
+
+	// Cycle data endpoints
+	await page.route('**/api/data/cycles', async (route) => {
+		const method = route.request().method();
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: true,
+				data: [],
+				message: `Mock cycle endpoint (${method}) - no production access`
+			})
+		});
+	});
+
+	// Analysis endpoints
+	await page.route('**/api/analysis/**', async (route) => {
+		const method = route.request().method();
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: true,
+				data: [],
+				message: `Mock analysis endpoint (${method}) - no production access`
+			})
 		});
 	});
 
@@ -117,7 +224,22 @@ async function setupBaseMocks(page) {
 }
 
 async function setupAuthenticatedMocks(page) {
-	// Mock configuration check
+	// IMPORTANT: Catch-all must come FIRST to prevent production access
+	await page.route('**/api/**', async (route) => {
+		const url = route.request().url();
+		const method = route.request().method();
+		console.log(`[TEST] Catch-all intercepted in setupAuthenticatedMocks auth.spec.ts: ${method} ${url}`);
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: false,
+				error: `Mock endpoint - test intercepted ${method} call to ${url}`
+			})
+		});
+	});
+
+	// Specific mocks override the catch-all
 	await page.route('/api/auth/configure', async (route) => {
 		await route.fulfill({
 			status: 200,
@@ -129,7 +251,6 @@ async function setupAuthenticatedMocks(page) {
 		});
 	});
 
-	// Mock authenticated auth status
 	await page.route('/api/auth/status', async (route) => {
 		await route.fulfill({
 			status: 200,
@@ -142,12 +263,105 @@ async function setupAuthenticatedMocks(page) {
 		});
 	});
 
-	// Mock has existing data check
+	await page.route('/api/auth/authenticate', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: false,
+				error: 'Mock auth endpoint - no real authentication in tests'
+			})
+		});
+	});
+
+	await page.route('/api/auth/logout', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: true,
+				message: 'Logged out (test mode)'
+			})
+		});
+	});
+
+	await page.route('/api/auth/callback', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: false,
+				error: 'Mock callback endpoint - no real callback in tests'
+			})
+		});
+	});
+
 	await page.route('/api/import/has-data', async (route) => {
 		await route.fulfill({
 			status: 200,
 			contentType: 'application/json',
 			body: JSON.stringify({ hasData: false })
+		});
+	});
+
+	await page.route('/api/import', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: false,
+				error: 'Mock import endpoint - no real import in tests'
+			})
+		});
+	});
+
+	await page.route('/api/import/all', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: false,
+				error: 'Mock import/all endpoint - no real import in tests'
+			})
+		});
+	});
+
+	await page.route('/api/import/intelligent', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: false,
+				error: 'Mock import/intelligent endpoint - no real import in tests'
+			})
+		});
+	});
+
+	// Cycle data endpoints
+	await page.route('**/api/data/cycles', async (route) => {
+		const method = route.request().method();
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: true,
+				data: [],
+				message: `Mock cycle endpoint (${method}) - no production access`
+			})
+		});
+	});
+
+	// Analysis endpoints
+	await page.route('**/api/analysis/**', async (route) => {
+		const method = route.request().method();
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: true,
+				data: [],
+				message: `Mock analysis endpoint (${method}) - no production access`
+			})
 		});
 	});
 
@@ -262,21 +476,21 @@ test.describe('Authentication Flow', () => {
 		await navigateAndWaitForTab(page);
 
 		// Check page title - updated for new routing structure
-		await expect(page).toHaveTitle('Data Import - Body Composition Tracker');
+		await expect(page).toHaveTitle('Body Comp Data - Body Composition Tracker');
 
 		// Check main heading
 		await expect(page.getByRole('heading', { name: 'Body Composition Tracker' })).toBeVisible();
 
 		// Check tab navigation - these should be visible once configured
-		await expect(page.getByRole('tab', { name: 'Data Import' })).toBeVisible();
-		await expect(page.getByRole('tab', { name: 'Raw Data' })).toBeVisible();
+		await expect(page.getByRole('tab', { name: 'Body Comp Data' })).toBeVisible();
+		await expect(page.getByRole('tab', { name: 'Cycle Data' })).toBeVisible();
 		await expect(page.getByRole('tab', { name: 'Analysis' })).toBeVisible();
 
-		// Check that Data Import tab is active by default
-		await expect(page.getByRole('tab', { name: 'Data Import' })).toHaveClass(/active/);
+		// Check that Body Comp Data tab is active by default
+		await expect(page.getByRole('tab', { name: 'Body Comp Data' })).toHaveClass(/active/);
 	});
 
-	test('should display authentication section in Data Import tab', async ({ page }) => {
+	test('should display authentication section in Body Comp Data tab', async ({ page }) => {
 		await setupBaseMocks(page);
 		await navigateAndWaitForTab(page);
 
@@ -305,13 +519,13 @@ test.describe('Authentication Flow', () => {
 		await setupBaseMocks(page);
 		await navigateAndWaitForTab(page);
 
-		// Verify we're on the data-import page initially
-		await expect(page).toHaveURL('/data-import');
+		// Verify we're on the body-comp-data page initially
+		await expect(page).toHaveURL('/body-comp-data');
 
-		// Click on Raw Data tab
-		await page.getByRole('tab', { name: 'Raw Data' }).click();
-		await expect(page).toHaveURL('/raw-data');
-		await expect(page.getByRole('heading', { name: 'Raw Data' })).toBeVisible();
+		// Click on Cycle Data tab
+		await page.getByRole('tab', { name: 'Cycle Data' }).click();
+		await expect(page).toHaveURL('/cycle-data');
+		await expect(page.getByRole('heading', { name: 'Cycle Data' })).toBeVisible();
 		await expect(page.locator('.data-container')).toBeVisible();
 
 		// Click on Analysis tab
@@ -321,10 +535,10 @@ test.describe('Authentication Flow', () => {
 		await expect(page.locator('.chart-container').first()).toBeVisible({ timeout: 10000 });
 		await expect(page.locator('.chart').first()).toBeVisible();
 
-		// Navigate back to Data Import
-		await page.getByRole('tab', { name: 'Data Import' }).click();
-		await expect(page).toHaveURL('/data-import');
-		// Verify we're back on the data import page by checking for authentication button
+		// Navigate back to Body Comp Data
+		await page.getByRole('tab', { name: 'Body Comp Data' }).click();
+		await expect(page).toHaveURL('/body-comp-data');
+		// Verify we're back on the body comp data page by checking for authentication button
 		await expect(page.getByRole('button', { name: 'Authenticate' })).toBeVisible();
 	});
 
@@ -436,9 +650,15 @@ test.describe('Authentication Flow', () => {
 		await setupFailureMocks(page);
 		await navigateAndWaitForTab(page);
 
+		// The auth section is now in the first data container of the Body Comp Data tab
+		const tabContent = page.locator('.tab-content');
+		const pageDataContainers = tabContent.locator('> .data-container');
+		await expect(pageDataContainers).toHaveCount(2, { timeout: 10000 });
+		const authSection = pageDataContainers.nth(0);
+
 		// Check that error state is displayed for API failure - use actual error message
-		await expect(page.locator('.feedback.error')).toBeVisible();
-		await expect(page.locator('.feedback')).toContainText('Failed to check authentication status');
+		await expect(authSection.locator('.feedback.error')).toBeVisible();
+		await expect(authSection.locator('.feedback')).toContainText('Failed to check authentication status');
 	});
 
 	test('should handle authentication API error gracefully', async ({ page }) => {
@@ -519,11 +739,12 @@ test.describe('Authentication Flow', () => {
 
 		// Check that main elements are visible on mobile
 		await expect(page.getByRole('heading', { name: 'Body Composition Tracker' })).toBeVisible();
-		await expect(page.getByRole('tab', { name: 'Data Import' })).toBeVisible();
+		await expect(page.getByRole('tab', { name: 'Body Comp Data' })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Authenticate' })).toBeVisible();
 
 		// Check that tab navigation works on mobile
-		await page.getByRole('tab', { name: 'Raw Data' }).click();
-		await expect(page.locator('.data-container')).toBeVisible();
+		await page.getByRole('tab', { name: 'Cycle Data' }).click();
+		const tabContent = page.locator('.tab-content');
+		await expect(tabContent.locator('.data-container').first()).toBeVisible();
 	});
 });

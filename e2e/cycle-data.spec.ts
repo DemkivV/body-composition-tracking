@@ -1,7 +1,20 @@
 import { test, expect } from '@playwright/test';
 
 async function setupCompleteMocks(page) {
-	// Mock all API endpoints
+	// IMPORTANT: Catch-all must come FIRST, then specific mocks override it
+	await page.route('**/api/**', async (route) => {
+		const url = route.request().url();
+		const method = route.request().method();
+		console.log(`[TEST] Catch-all intercepted: ${method} ${url}`);
+		await route.fulfill({
+			json: {
+				success: false,
+				error: `Mock endpoint - test intercepted ${method} call to ${url}`
+			}
+		});
+	});
+
+	// Specific endpoints override the catch-all
 	await page.route('/api/auth/configure', async (route) => {
 		await route.fulfill({
 			json: { success: true, configured: true }
@@ -14,21 +27,65 @@ async function setupCompleteMocks(page) {
 		});
 	});
 
+	await page.route('/api/auth/authenticate', async (route) => {
+		await route.fulfill({
+			json: { success: false, error: 'Mock auth endpoint - no real authentication in tests' }
+		});
+	});
+
+	await page.route('/api/auth/logout', async (route) => {
+		await route.fulfill({
+			json: { success: true, message: 'Logged out (test mode)' }
+		});
+	});
+
 	await page.route('/api/import/has-data', async (route) => {
 		await route.fulfill({
 			json: { success: true, hasData: true }
 		});
 	});
 
-	await page.route('/api/data/raw', async (route) => {
+	await page.route('/api/import', async (route) => {
 		await route.fulfill({
-			json: { success: true, data: [] }
+			json: { success: false, error: 'Mock import endpoint - no real import in tests' }
 		});
 	});
 
-	// Mock the cycles API endpoint
-	await page.route('/api/data/cycles', async (route) => {
-		if (route.request().method() === 'GET') {
+	await page.route('/api/import/all', async (route) => {
+		await route.fulfill({
+			json: { success: false, error: 'Mock import/all endpoint - no real import in tests' }
+		});
+	});
+
+	await page.route('/api/import/intelligent', async (route) => {
+		await route.fulfill({
+			json: { success: false, error: 'Mock import/intelligent endpoint - no real import in tests' }
+		});
+	});
+
+	await page.route('/api/auth/callback', async (route) => {
+		await route.fulfill({
+			json: { success: false, error: 'Mock callback endpoint - no real callback in tests' }
+		});
+	});
+
+	// Raw data endpoints - prevent production file access
+	await page.route('**/api/data/raw', async (route) => {
+		const method = route.request().method();
+		await route.fulfill({
+			json: { 
+				success: true, 
+				data: [],
+				message: `Mock raw data endpoint (${method}) - no production access`
+			}
+		});
+	});
+
+	// Cycle data endpoints - prevent production file access
+	await page.route('**/api/data/cycles', async (route) => {
+		const method = route.request().method();
+		
+		if (method === 'GET') {
 			await route.fulfill({
 				json: {
 					success: true,
@@ -50,11 +107,49 @@ async function setupCompleteMocks(page) {
 					]
 				}
 			});
-		} else if (route.request().method() === 'PUT') {
+		} else if (method === 'POST') {
 			await route.fulfill({
-				json: { success: true }
+				json: { 
+					success: true, 
+					id: Math.floor(Math.random() * 1000) + 100,
+					message: 'Cycle added successfully (test mode)' 
+				}
+			});
+		} else if (method === 'PUT') {
+			await route.fulfill({
+				json: { 
+					success: true,
+					message: 'Cycle updated successfully (test mode)' 
+				}
+			});
+		} else if (method === 'DELETE') {
+			await route.fulfill({
+				json: { 
+					success: true,
+					message: 'Cycle deleted successfully (test mode)' 
+				}
+			});
+		} else {
+			await route.fulfill({
+				status: 405,
+				json: { 
+					success: false, 
+					error: 'Method not allowed' 
+				}
 			});
 		}
+	});
+
+	// Analysis endpoints
+	await page.route('**/api/analysis/**', async (route) => {
+		const method = route.request().method();
+		await route.fulfill({
+			json: {
+				success: true,
+				data: [],
+				message: `Mock analysis endpoint (${method}) - no production access`
+			}
+		});
 	});
 }
 
@@ -73,32 +168,10 @@ test.describe('Cycle Data Tab', () => {
 	});
 
 	test('should handle API failures gracefully without endless loading', async ({ page }) => {
-		// Setup auth mocks but make cycles API fail
-		await page.route('/api/auth/configure', async (route) => {
-			await route.fulfill({
-				json: { success: true, configured: true }
-			});
-		});
-
-		await page.route('/api/auth/status', async (route) => {
-			await route.fulfill({
-				json: { success: true, authenticated: true }
-			});
-		});
-
-		await page.route('/api/import/has-data', async (route) => {
-			await route.fulfill({
-				json: { success: true, hasData: true }
-			});
-		});
-
-		await page.route('/api/data/raw', async (route) => {
-			await route.fulfill({
-				json: { success: true, data: [] }
-			});
-		});
-
-		// Make cycles API fail to test error handling
+		// First set up complete mocks to prevent production access
+		await setupCompleteMocks(page);
+		
+		// Then override just the cycles API to fail for this test
 		await page.route('/api/data/cycles', async (route) => {
 			await route.fulfill({
 				status: 500,
@@ -114,8 +187,6 @@ test.describe('Cycle Data Tab', () => {
 		// Should show error message or retry button (use first one to avoid strict mode violation)
 		await expect(page.locator('.error-container').first()).toBeVisible();
 	});
-
-
 
 	test('should display cycle data table when Cycle Data tab is clicked', async ({ page }) => {
 		await setupCompleteMocks(page);
@@ -237,10 +308,10 @@ test.describe('Cycle Data Tab', () => {
 		await expect(page).toHaveURL('/cycle-data');
 		await expect(page.locator('[data-tab="cycle-data"]')).toHaveClass(/active/);
 
-		// Navigate back to Raw Data
-		await page.click('[data-tab="raw-data"]');
-		await expect(page).toHaveURL('/raw-data');
-		await expect(page.locator('[data-tab="raw-data"]')).toHaveClass(/active/);
+		// Navigate back to Body Comp Data
+		await page.click('[data-tab="body-comp-data"]');
+		await expect(page).toHaveURL('/body-comp-data');
+		await expect(page.locator('[data-tab="body-comp-data"]')).toHaveClass(/active/);
 
 		// Navigate to Analysis
 		await page.click('[data-tab="analysis"]');

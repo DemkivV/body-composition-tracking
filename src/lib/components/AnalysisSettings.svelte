@@ -22,6 +22,9 @@
 			weightedAverageWindow: newValue
 		});
 	}
+
+	// Computed display value for the slider
+	$: sliderDisplayValue = `${weightedAverageWindow} ${weightedAverageWindow === 1 ? 'day' : 'days'}`;
 </script>
 
 <div class="settings-container">
@@ -39,7 +42,9 @@
 			on:input={handleWindowSizeChange}
 			data-testid="weighted-average-slider"
 		/>
-		<div class="slider-value" data-testid="slider-value">{weightedAverageWindow} {weightedAverageWindow === 1 ? 'day' : 'days'}</div>
+		<div class="slider-value" data-testid="slider-value">
+			{sliderDisplayValue}
+		</div>
 	</div>
 </div>
 

@@ -14,8 +14,8 @@ import Page from './+page.svelte';
 import { goto } from '$app/navigation';
 
 describe('/+page.svelte', () => {
-	test('should redirect to data-import', () => {
+	test('should redirect to body-comp-data', () => {
 		render(Page);
-		expect(goto).toHaveBeenCalledWith('/data-import', { replaceState: true });
+		expect(goto).toHaveBeenCalledWith('/body-comp-data', { replaceState: true });
 	});
 });

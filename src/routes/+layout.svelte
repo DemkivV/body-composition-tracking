@@ -33,7 +33,7 @@
 	}
 
 	// Get active tab from current route
-	$: activeTab = $page.url.pathname.slice(1) || 'data-import';
+	$: activeTab = $page.url.pathname.slice(1) || 'body-comp-data';
 </script>
 
 <svelte:head>

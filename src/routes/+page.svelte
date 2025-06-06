@@ -3,8 +3,8 @@
 	import { onMount } from 'svelte';
 
 	onMount(() => {
-		goto('/data-import', { replaceState: true });
+		goto('/body-comp-data', { replaceState: true });
 	});
 </script>
 
-<!-- This page redirects to the data-import tab -->
+<!-- This page redirects to the body-comp-data tab -->
