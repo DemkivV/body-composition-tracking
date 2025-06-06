@@ -1,4 +1,6 @@
 import type { BodyCompositionRow } from '$lib/types/data';
+import { removeOutliersFromDataset } from './data/outlier-detection';
+import { applyWeightedAverages } from './data/weighted-averaging';
 
 export interface ProcessedDataPoint {
 	date: string;
@@ -102,206 +104,81 @@ export function processBodyCompositionData(
 		return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
 	});
 
-	// Step 1: Remove outliers using local window analysis
+	// Step 1: Remove outliers using focused outlier detection module
 	if (removeOutliers && processedData.length > outlierDetectionWindow) {
-		processedData = removeOutliersFromData(processedData, outlierDetectionWindow, outlierThreshold);
+		processedData = removeOutliersFromDataset(
+			processedData,
+			[(point) => point.weight, (point) => point.bodyFatPercentage],
+			{
+				windowSize: outlierDetectionWindow,
+				threshold: outlierThreshold
+			}
+		);
 	}
 
-	// Step 2: Apply weighted averages if enabled
+	// Step 2: Apply weighted averages using focused averaging module
 	if (
 		useWeightedAverage &&
 		weightedAverageWindow > 1 &&
 		processedData.length >= weightedAverageWindow
 	) {
-		processedData = calculateWeightedAverages(processedData, weightedAverageWindow);
+		processedData = applyWeightedAverages(
+			processedData,
+			{
+				weight: (point) => point.weight,
+				fatMass: (point) => point.fatMass,
+				bodyFatPercentage: (point) => point.bodyFatPercentage,
+				boneMass: (point) => point.boneMass,
+				muscleMass: (point) => point.muscleMass,
+				hydration: (point) => point.hydration
+			},
+			{
+				weight: (point, value) => ({ ...point, weight: value }),
+				fatMass: (point, value) => ({ ...point, fatMass: value }),
+				bodyFatPercentage: (point, value) => ({ ...point, bodyFatPercentage: value }),
+				boneMass: (point, value) => ({ ...point, boneMass: value }),
+				muscleMass: (point, value) => ({ ...point, muscleMass: value }),
+				hydration: (point, value) => ({ ...point, hydration: value })
+			},
+			weightedAverageWindow
+		);
 	}
 
 	return processedData;
 }
 
 /**
- * Removes outliers from the data using a rolling window approach with Modified Z-Score
- * This method calculates local statistics (median and MAD) for each window to handle long time series data
+ * @deprecated Use calculateWeightedMetricAverage from weighted-averaging module instead
  */
-function removeOutliersFromData(
-	data: ProcessedDataPoint[],
-	windowSize: number,
-	threshold: number
-): ProcessedDataPoint[] {
-	const filteredData: ProcessedDataPoint[] = [];
-
-	for (let i = 0; i < data.length; i++) {
-		const current = data[i];
-
-		// Define window boundaries (windowSize/2 before and after current point)
-		const halfWindow = Math.floor(windowSize / 2);
-		const windowStart = Math.max(0, i - halfWindow);
-		const windowEnd = Math.min(data.length - 1, i + halfWindow);
-
-		// Extract window data for each metric
-		const windowData = data.slice(windowStart, windowEnd + 1);
-
-		// Check if current point is an outlier for any metric
-		const isWeightOutlier =
-			current.weight !== null
-				? isValueOutlier(
-						current.weight,
-						windowData.map((d) => d.weight).filter((v) => v !== null) as number[],
-						threshold
-					)
-				: false;
-
-		const isBodyFatOutlier =
-			current.bodyFatPercentage !== null
-				? isValueOutlier(
-						current.bodyFatPercentage,
-						windowData.map((d) => d.bodyFatPercentage).filter((v) => v !== null) as number[],
-						threshold
-					)
-				: false;
-
-		// Keep the point if it's not an outlier in any key metric
-		// We're particularly concerned about body fat outliers as mentioned in the requirements
-		if (!isWeightOutlier && !isBodyFatOutlier) {
-			filteredData.push(current);
-		}
-	}
-
-	return filteredData;
-}
-
-/**
- * Determines if a value is an outlier using Modified Z-Score method
- * Uses median and MAD (Median Absolute Deviation) for robustness
- */
-function isValueOutlier(value: number, windowValues: number[], threshold: number): boolean {
-	if (windowValues.length < 3) return false; // Need at least 3 points for meaningful statistics
-
-	// Calculate median
-	const sortedValues = [...windowValues].sort((a, b) => a - b);
-	const median = getMedian(sortedValues);
-
-	// Calculate MAD (Median Absolute Deviation)
-	const deviations = sortedValues.map((v) => Math.abs(v - median));
-	const mad = getMedian(deviations.sort((a, b) => a - b));
-
-	// Avoid division by zero
-	if (mad === 0) return false;
-
-	// Calculate Modified Z-Score
-	const modifiedZScore = (0.6745 * (value - median)) / mad;
-
-	return Math.abs(modifiedZScore) > threshold;
-}
-
-/**
- * Calculates median of a sorted array
- */
-function getMedian(sortedArray: number[]): number {
-	const length = sortedArray.length;
-	if (length % 2 === 0) {
-		return (sortedArray[length / 2 - 1] + sortedArray[length / 2]) / 2;
-	} else {
-		return sortedArray[Math.floor(length / 2)];
-	}
-}
-
-/**
- * Calculates weighted averages for the processed data using linear weighting
- * More recent values get higher weights in the average calculation
- */
-function calculateWeightedAverages(
+export function calculateWeightedAverages(
 	data: ProcessedDataPoint[],
 	windowSize: number
 ): ProcessedDataPoint[] {
-	const result: ProcessedDataPoint[] = [];
-
-	// Skip the first (windowSize - 1) points as we can't calculate weighted average for them
-	for (let i = windowSize - 1; i < data.length; i++) {
-		const windowData = data.slice(i - windowSize + 1, i + 1);
-		const currentDate = data[i].date;
-
-		// Calculate weighted averages for each metric
-		const weightedPoint: ProcessedDataPoint = {
-			date: currentDate,
-			weight: calculateWeightedMetricAverage(
-				windowData.map((d) => d.weight),
-				windowSize
-			),
-			fatMass: calculateWeightedMetricAverage(
-				windowData.map((d) => d.fatMass),
-				windowSize
-			),
-			bodyFatPercentage: calculateWeightedMetricAverage(
-				windowData.map((d) => d.bodyFatPercentage),
-				windowSize
-			),
-			boneMass: calculateWeightedMetricAverage(
-				windowData.map((d) => d.boneMass),
-				windowSize
-			),
-			muscleMass: calculateWeightedMetricAverage(
-				windowData.map((d) => d.muscleMass),
-				windowSize
-			),
-			hydration: calculateWeightedMetricAverage(
-				windowData.map((d) => d.hydration),
-				windowSize
-			)
-		};
-
-		result.push(weightedPoint);
-	}
-
-	return result;
+	// Legacy wrapper for backward compatibility
+	return applyWeightedAverages(
+		data,
+		{
+			weight: (point) => point.weight,
+			fatMass: (point) => point.fatMass,
+			bodyFatPercentage: (point) => point.bodyFatPercentage,
+			boneMass: (point) => point.boneMass,
+			muscleMass: (point) => point.muscleMass,
+			hydration: (point) => point.hydration
+		},
+		{
+			weight: (point, value) => ({ ...point, weight: value }),
+			fatMass: (point, value) => ({ ...point, fatMass: value }),
+			bodyFatPercentage: (point, value) => ({ ...point, bodyFatPercentage: value }),
+			boneMass: (point, value) => ({ ...point, boneMass: value }),
+			muscleMass: (point, value) => ({ ...point, muscleMass: value }),
+			hydration: (point, value) => ({ ...point, hydration: value })
+		},
+		windowSize
+	);
 }
 
 /**
- * Calculates weighted average for a single metric
- * Uses linear weighting where the most recent value has the highest weight
- */
-function calculateWeightedMetricAverage(
-	values: (number | null)[],
-	_windowSize: number
-): number | null {
-	// Filter out null values while keeping track of their positions
-	const validEntries: { value: number; weight: number }[] = [];
-
-	for (let i = 0; i < values.length; i++) {
-		if (values[i] !== null) {
-			// Linear weight: more recent values get higher weights
-			// Weight increases linearly from 1 to windowSize
-			const weight = i + 1;
-			validEntries.push({ value: values[i]!, weight });
-		}
-	}
-
-	if (validEntries.length === 0) return null;
-
-	// Calculate weighted average
-	const weightedSum = validEntries.reduce((sum, entry) => sum + entry.value * entry.weight, 0);
-	const totalWeight = validEntries.reduce((sum, entry) => sum + entry.weight, 0);
-
-	return weightedSum / totalWeight;
-}
-
-/**
- * Applies weighted averages to the processed data
- * This is a placeholder for future implementation
- */
-function _applyWeightedAverages(
-	data: ProcessedDataPoint[],
-	_windowSize: number
-): ProcessedDataPoint[] {
-	// TODO: Implement weighted average calculation
-	// For now, return data as-is
-	// Future implementation will calculate rolling weighted averages
-	// based on the specified window size
-	return data;
-}
-
-/**
- * Gets metrics for a specific date range
+ * Get data points within a specific date range
  */
 export function getMetricsForDateRange(
 	data: ProcessedDataPoint[],
@@ -318,43 +195,35 @@ export function getMetricsForDateRange(
 }
 
 /**
- * Calculates summary statistics for a dataset
+ * Calculate summary statistics for the dataset
  */
 export function calculateSummaryStats(data: ProcessedDataPoint[]) {
-	if (data.length === 0) return null;
-
-	const weights = data.map((d) => d.weight).filter((w) => w !== null) as number[];
-	const bodyFatPercentages = data
+	const validWeights = data.map((d) => d.weight).filter((w): w is number => w !== null);
+	const validBodyFat = data
 		.map((d) => d.bodyFatPercentage)
-		.filter((bf) => bf !== null) as number[];
-
-	const weightStats =
-		weights.length > 0
-			? {
-					min: Math.min(...weights),
-					max: Math.max(...weights),
-					avg: weights.reduce((sum, w) => sum + w, 0) / weights.length,
-					latest: weights[weights.length - 1],
-					earliest: weights[0],
-					change: weights[weights.length - 1] - weights[0]
-				}
-			: null;
-
-	const bodyFatStats =
-		bodyFatPercentages.length > 0
-			? {
-					min: Math.min(...bodyFatPercentages),
-					max: Math.max(...bodyFatPercentages),
-					avg: bodyFatPercentages.reduce((sum, bf) => sum + bf, 0) / bodyFatPercentages.length,
-					latest: bodyFatPercentages[bodyFatPercentages.length - 1],
-					earliest: bodyFatPercentages[0],
-					change: bodyFatPercentages[bodyFatPercentages.length - 1] - bodyFatPercentages[0]
-				}
-			: null;
+		.filter((bf): bf is number => bf !== null);
 
 	return {
-		dataPoints: data.length,
-		weight: weightStats,
-		bodyFat: bodyFatStats
+		totalPoints: data.length,
+		dateRange: {
+			start: data.length > 0 ? data[0].date : null,
+			end: data.length > 0 ? data[data.length - 1].date : null
+		},
+		weight: {
+			min: validWeights.length > 0 ? Math.min(...validWeights) : null,
+			max: validWeights.length > 0 ? Math.max(...validWeights) : null,
+			avg:
+				validWeights.length > 0
+					? validWeights.reduce((a, b) => a + b, 0) / validWeights.length
+					: null
+		},
+		bodyFat: {
+			min: validBodyFat.length > 0 ? Math.min(...validBodyFat) : null,
+			max: validBodyFat.length > 0 ? Math.max(...validBodyFat) : null,
+			avg:
+				validBodyFat.length > 0
+					? validBodyFat.reduce((a, b) => a + b, 0) / validBodyFat.length
+					: null
+		}
 	};
 }

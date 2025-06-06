@@ -2,6 +2,17 @@
 	import { onMount } from 'svelte';
 	import { tick } from 'svelte';
 	import type { ProcessedDataPoint } from '$lib/utils/dataProcessing';
+	import { colorToRgba, createGradientConfig } from '$lib/utils/chart/colors';
+	import {
+		formatAxisLabel,
+		formatChartDate,
+		formatSliderDate,
+		formatTooltipValue
+	} from '$lib/utils/chart/formatting';
+	import {
+		calculateDualAxisRanges,
+		normalizeDataForOverview
+	} from '$lib/utils/chart/range-calculations';
 
 	// Props
 	export let data: ProcessedDataPoint[];
@@ -98,31 +109,6 @@
 		initializeChart().catch((err) => console.error('Failed to initialize chart:', err));
 	}
 
-	// Helper function to convert color to RGBA
-	function colorToRgba(color: string, alpha: number): string {
-		// If it's already an rgba/rgb color, handle it
-		if (color.startsWith('rgb(')) {
-			return color.replace('rgb(', 'rgba(').replace(')', `, ${alpha})`);
-		}
-		if (color.startsWith('rgba(')) {
-			// Extract RGB values and replace alpha
-			const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-			if (match) {
-				return `rgba(${match[1]}, ${match[2]}, ${match[3]}, ${alpha})`;
-			}
-		}
-		// Handle hex colors
-		if (color.startsWith('#')) {
-			const hex = color.slice(1);
-			const r = parseInt(hex.slice(0, 2), 16);
-			const g = parseInt(hex.slice(2, 4), 16);
-			const b = parseInt(hex.slice(4, 6), 16);
-			return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-		}
-		// Fallback - return as is
-		return color;
-	}
-
 	async function initializeChart() {
 		if (!echartsLib || !chartContainer) return;
 
@@ -203,63 +189,18 @@
 		const startPercent = totalDays > 1 ? (startIndex / (totalDays - 1)) * 100 : 0;
 		const endPercent = totalDays > 1 ? (endIndex / (totalDays - 1)) * 100 : 100;
 
-		// Function to calculate dynamic ranges based on visible data window
-		function calculateDynamicRanges(start: number, end: number) {
-			const visibleLeftData = leftAxisData
-				.slice(start, end + 1)
-				.filter((v) => v !== null) as number[];
-			const visibleRightData = rightAxisData
-				.slice(start, end + 1)
-				.filter((v) => v !== null) as number[];
-
-			// Left axis range
-			let leftMin = 0,
-				leftMax = 100;
-			if (visibleLeftData.length > 0) {
-				const minLeft = Math.min(...visibleLeftData);
-				const maxLeft = Math.max(...visibleLeftData);
-				const leftRange = maxLeft - minLeft;
-				const leftPadding = Math.max(leftRange * 0.05, 0.1);
-				leftMin = Math.max(0, minLeft - leftPadding);
-				leftMax = maxLeft + leftPadding;
+		// Calculate initial ranges using utility function
+		const { leftMin, leftMax, rightMin, rightMax } = calculateDualAxisRanges(
+			leftAxisData,
+			rightAxisData,
+			startIndex,
+			endIndex,
+			{
+				leftDefaults: { min: 0, max: 100 },
+				rightDefaults: { min: 0, max: 30 },
+				paddingPercent: 0.05
 			}
-
-			// Right axis range
-			let rightMin = 0,
-				rightMax = 30;
-			if (visibleRightData.length > 0) {
-				const minRight = Math.min(...visibleRightData);
-				const maxRight = Math.max(...visibleRightData);
-				const rightRange = maxRight - minRight;
-				const rightPadding = Math.max(rightRange * 0.05, 0.1);
-				rightMin = Math.max(0, minRight - rightPadding);
-				rightMax = maxRight + rightPadding;
-			}
-
-			return { leftMin, leftMax, rightMin, rightMax };
-		}
-
-		// Calculate initial ranges
-		const { leftMin, leftMax, rightMin, rightMax } = calculateDynamicRanges(startIndex, endIndex);
-
-		// Format numbers with sensible precision
-		function formatAxisLabel(value: number, unit: string): string {
-			let formattedValue: string;
-
-			if (value === 0) {
-				formattedValue = '0';
-			} else if (Math.abs(value) >= 100) {
-				formattedValue = Math.round(value).toString();
-			} else if (Math.abs(value) >= 10) {
-				formattedValue = (Math.round(value * 10) / 10).toString();
-			} else if (Math.abs(value) >= 1) {
-				formattedValue = (Math.round(value * 10) / 10).toString();
-			} else {
-				formattedValue = (Math.round(value * 100) / 100).toString();
-			}
-
-			return formattedValue + unit;
-		}
+		);
 
 		const option = {
 			title: {
@@ -300,15 +241,13 @@
 							actualValue !== null &&
 							actualValue !== undefined
 						) {
-							const precision = leftAxisConfig.unit === ' kg' ? 2 : 1;
-							content += `${param.seriesName}: ${actualValue.toFixed(precision)}${leftAxisConfig.unit}<br/>`;
+							content += `${param.seriesName}: ${formatTooltipValue(actualValue, leftAxisConfig.unit)}<br/>`;
 						} else if (
 							param.seriesName === rightAxisConfig.label &&
 							actualValue !== null &&
 							actualValue !== undefined
 						) {
-							const precision = rightAxisConfig.unit === '%' ? 1 : 2;
-							content += `${param.seriesName}: ${actualValue.toFixed(precision)}${rightAxisConfig.unit}<br/>`;
+							content += `${param.seriesName}: ${formatTooltipValue(actualValue, rightAxisConfig.unit)}<br/>`;
 						}
 					});
 
@@ -342,13 +281,7 @@
 					axisLabel: {
 						rotate: 45,
 						color: '#94a3b8',
-						formatter: function (value: number) {
-							const date = new Date(value);
-							return date.toLocaleDateString('en-US', {
-								month: 'short',
-								day: 'numeric'
-							});
-						}
+						formatter: formatChartDate
 					},
 					axisLine: {
 						lineStyle: {
@@ -487,16 +420,10 @@
 							color: '#475569'
 						},
 						areaStyle: {
-							color: 'rgba(59, 130, 246, 0.1)'
+							color: colorToRgba('#3b82f6', 0.02)
 						}
 					},
-					labelFormatter: function (value: number) {
-						const date = new Date(value);
-						return date.toLocaleDateString('en-US', {
-							month: 'short',
-							day: 'numeric'
-						});
-					}
+					labelFormatter: formatSliderDate
 				}
 			],
 			backgroundColor: 'transparent',
@@ -518,23 +445,7 @@
 						color: leftAxisConfig.color
 					},
 					areaStyle: {
-						color: {
-							type: 'linear',
-							x: 0,
-							y: 0,
-							x2: 0,
-							y2: 1,
-							colorStops: [
-								{
-									offset: 0,
-									color: colorToRgba(leftAxisConfig.color, 0.2)
-								},
-								{
-									offset: 1,
-									color: colorToRgba(leftAxisConfig.color, 0.05)
-								}
-							]
-						}
+						color: createGradientConfig(leftAxisConfig.color)
 					},
 					emphasis: {
 						focus: 'series'
@@ -557,23 +468,7 @@
 						color: rightAxisConfig.color
 					},
 					areaStyle: {
-						color: {
-							type: 'linear',
-							x: 0,
-							y: 0,
-							x2: 0,
-							y2: 1,
-							colorStops: [
-								{
-									offset: 0,
-									color: colorToRgba(rightAxisConfig.color, 0.2)
-								},
-								{
-									offset: 1,
-									color: colorToRgba(rightAxisConfig.color, 0.05)
-								}
-							]
-						}
+						color: createGradientConfig(rightAxisConfig.color)
 					},
 					emphasis: {
 						focus: 'series'
@@ -603,19 +498,18 @@
 					type: 'line',
 					xAxisIndex: 1,
 					yAxisIndex: 2,
-					data: rightAxisData.map((value, index) => {
-						// Normalize right axis data to the same scale as left axis for overview
-						if (value === null) return [dates[index], null];
-						const normalizedValue =
-							((value - rightMin) / (rightMax - rightMin)) * (leftMax - leftMin) + leftMin;
-						return [dates[index], normalizedValue];
-					}),
+					data: normalizeDataForOverview(rightAxisData, rightMin, rightMax, leftMin, leftMax).map(
+						(value, index) => [dates[index], value]
+					),
 					smooth: true,
 					symbol: 'none',
 					lineStyle: {
 						color: rightAxisConfig.color,
 						width: 1,
 						opacity: 0.3
+					},
+					areaStyle: {
+						color: colorToRgba(rightAxisConfig.color, 0.02)
 					},
 					silent: true,
 					animation: false
@@ -657,32 +551,25 @@
 							return dataTime >= startTime && dataTime <= endTime;
 						});
 
-						const visibleLeftData = filteredData
-							.map((d) => d[leftAxisConfig.dataKey] as number | null)
-							.filter((v): v is number => v !== null);
-						const visibleRightData = filteredData
-							.map((d) => d[rightAxisConfig.dataKey] as number | null)
-							.filter((v): v is number => v !== null);
+						const visibleLeftData = filteredData.map(
+							(d) => d[leftAxisConfig.dataKey] as number | null
+						);
+						const visibleRightData = filteredData.map(
+							(d) => d[rightAxisConfig.dataKey] as number | null
+						);
 
-						let newRanges = { leftMin: 0, leftMax: 100, rightMin: 0, rightMax: 30 };
-
-						if (visibleLeftData.length > 0) {
-							const minLeft = Math.min(...visibleLeftData);
-							const maxLeft = Math.max(...visibleLeftData);
-							const leftRange = maxLeft - minLeft;
-							const leftPadding = Math.max(leftRange * 0.05, 0.1);
-							newRanges.leftMin = Math.max(0, minLeft - leftPadding);
-							newRanges.leftMax = maxLeft + leftPadding;
-						}
-
-						if (visibleRightData.length > 0) {
-							const minRight = Math.min(...visibleRightData);
-							const maxRight = Math.max(...visibleRightData);
-							const rightRange = maxRight - minRight;
-							const rightPadding = Math.max(rightRange * 0.05, 0.1);
-							newRanges.rightMin = Math.max(0, minRight - rightPadding);
-							newRanges.rightMax = maxRight + rightPadding;
-						}
+						// Calculate new ranges using utility function
+						const newRanges = calculateDualAxisRanges(
+							visibleLeftData,
+							visibleRightData,
+							0,
+							visibleLeftData.length - 1,
+							{
+								leftDefaults: { min: 0, max: 100 },
+								rightDefaults: { min: 0, max: 30 },
+								paddingPercent: 0.05
+							}
+						);
 
 						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						(chart as any).setOption(
