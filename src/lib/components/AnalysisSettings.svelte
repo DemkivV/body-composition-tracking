@@ -39,9 +39,7 @@
 			on:input={handleWindowSizeChange}
 			data-testid="weighted-average-slider"
 		/>
-		<div class="slider-value" data-testid="slider-value">
-			{weightedAverageWindow} {weightedAverageWindow === 1 ? 'day' : 'days'}
-		</div>
+		<div class="slider-value" data-testid="slider-value">{weightedAverageWindow} {weightedAverageWindow === 1 ? 'day' : 'days'}</div>
 	</div>
 </div>
 

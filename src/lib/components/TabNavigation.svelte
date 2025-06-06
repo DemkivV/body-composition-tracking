@@ -13,6 +13,7 @@
 	const tabs: Tab[] = [
 		{ id: 'data-import', label: 'Data Import', path: '/data-import' },
 		{ id: 'raw-data', label: 'Raw Data', path: '/raw-data' },
+		{ id: 'cycle-data', label: 'Cycle Data', path: '/cycle-data' },
 		{ id: 'analysis', label: 'Analysis', path: '/analysis' }
 	];
 
