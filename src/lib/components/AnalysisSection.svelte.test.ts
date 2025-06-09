@@ -74,8 +74,10 @@ test('AnalysisSection handles API error gracefully', async () => {
 
 	const { findByText } = render(AnalysisSection);
 
-	// Wait for the error state to be rendered - the error message should be 'Failed to fetch data'
-	expect(await findByText('Failed to fetch data')).toBeInTheDocument();
+	// Wait for the error state to be rendered
+	expect(
+		await findByText('Failed to load body composition data. Please check your connection.')
+	).toBeInTheDocument();
 });
 
 test('AnalysisSection renders charts when data is available', async () => {

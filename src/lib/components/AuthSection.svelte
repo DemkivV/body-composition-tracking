@@ -1,9 +1,13 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, createEventDispatcher } from 'svelte';
 	import { authStore } from '../stores/auth';
 	import { authService } from '../services/auth';
 	import { importClientService } from '../services/import-client.js';
 	import type { ImportResult } from '../types/measurements.js';
+	import { dataService } from '$lib/services/data-service';
+
+	// Callback prop for when data is successfully imported
+	export let onDataImported: (() => void) | undefined = undefined;
 
 	// Reactive state from store
 	$: authState = $authStore;
@@ -13,6 +17,8 @@
 	let importResult: ImportResult | null = null;
 	let progressMessage = '';
 	let hasExistingData = false;
+
+	const dispatch = createEventDispatcher();
 
 	onMount(async () => {
 		// Check authentication status when component mounts
@@ -72,6 +78,14 @@
 			// Update data existence status after import
 			if (importResult.success) {
 				await checkDataExists();
+				// Refresh data cache
+				await dataService.refreshAllData();
+				// Notify parent components
+				dispatch('dataImported');
+				// Trigger data refresh callback
+				if (onDataImported) {
+					onDataImported();
+				}
 			}
 		} finally {
 			isImporting = false;

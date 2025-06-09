@@ -1,23 +1,21 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import type { BodyCompositionRow, DataApiResponse } from '$lib/types/data';
-	import type { ProcessedDataPoint } from '$lib/utils/dataProcessing';
-	import { processBodyCompositionData } from '$lib/utils/dataProcessing';
+	import { onMount } from 'svelte';
+	import { dataStore } from '$lib/stores/data';
+	import { dataService } from '$lib/services/data-service';
 	import HistoricalDataChart from './charts/HistoricalDataChart.svelte';
 	import AnalysisSettings from './AnalysisSettings.svelte';
+	import type { ProcessedDataPoint } from '$lib/utils/dataProcessing';
+	import { processBodyCompositionData } from '$lib/utils/dataProcessing';
 
-	// Global data state - precomputed once and shared across all charts
-	let rawData: BodyCompositionRow[] = [];
-	let globalProcessedData: ProcessedDataPoint[] = [];
-	let loading = true;
-	let error = '';
-	let abortController: AbortController | null = null;
+	$: storeData = $dataStore;
+	$: rawData = storeData.bodyCompositionData;
+	$: loading = storeData.bodyCompLoading;
+	$: error = storeData.error;
 
 	// Settings state
 	let weightedAverageWindow = 7; // Default value
 
 	// Reactive processed data with dynamic weighted averaging window
-	// This is the SINGLE place where data preprocessing happens to avoid double processing
 	$: globalProcessedData = processBodyCompositionData(rawData, {
 		includeIncompleteData: true,
 		sortOrder: 'asc',
@@ -28,51 +26,22 @@
 		weightedAverageWindow: weightedAverageWindow
 	});
 
-	onMount(() => {
-		loadData();
-	});
+	onMount(async () => {
+		// Wait for data service initialization if not yet initialized
+		const initPromise = dataService.getInitializationPromise();
+		if (initPromise) {
+			await initPromise;
+		}
 
-	onDestroy(() => {
-		// Cancel any in-flight requests
-		if (abortController) {
-			abortController.abort();
-			abortController = null;
+		// If no data yet or very old, refresh
+		const shouldLoad =
+			!storeData.bodyCompLastUpdated ||
+			Date.now() - storeData.bodyCompLastUpdated.getTime() > 5 * 60 * 1000; // 5 minutes
+
+		if (shouldLoad || storeData.bodyCompositionData.length === 0) {
+			await dataService.refreshBodyCompositionData();
 		}
 	});
-
-	async function loadData() {
-		try {
-			loading = true;
-
-			// Cancel any previous requests
-			if (abortController) {
-				abortController.abort();
-			}
-
-			abortController = new AbortController();
-
-			const response = await fetch('/api/data/raw', {
-				signal: abortController.signal
-			});
-			const result: DataApiResponse = await response.json();
-
-			if (result.success && result.data) {
-				rawData = result.data;
-			} else {
-				error = result.error || 'Failed to load data';
-			}
-		} catch (err) {
-			// Don't show error if request was aborted (component cleanup)
-			if (err instanceof Error && err.name === 'AbortError') {
-				return;
-			}
-			error = 'Failed to fetch data';
-			console.error('Error loading data:', err);
-		} finally {
-			loading = false;
-			abortController = null;
-		}
-	}
 
 	// Chart configurations - flexible axis setup for different visualizations
 	const weightVsBodyFatConfig = {
@@ -87,22 +56,6 @@
 			color: '#f97316',
 			unit: '%',
 			dataKey: 'bodyFatPercentage' as keyof ProcessedDataPoint
-		}
-	};
-
-	// Example of a different chart configuration for future use
-	const _muscleMassVsHydrationConfig = {
-		leftAxis: {
-			label: 'Muscle Mass',
-			color: '#10b981',
-			unit: ' kg',
-			dataKey: 'muscleMass' as keyof ProcessedDataPoint
-		},
-		rightAxis: {
-			label: 'Hydration',
-			color: '#06b6d4',
-			unit: ' kg',
-			dataKey: 'hydration' as keyof ProcessedDataPoint
 		}
 	};
 
@@ -123,7 +76,9 @@
 	<div class="analysis-container">
 		<div class="error-container">
 			<p class="feedback error">{error}</p>
-			<button class="btn secondary" on:click={loadData}>Retry</button>
+			<button class="btn secondary" on:click={() => dataService.refreshBodyCompositionData()}
+				>Retry</button
+			>
 		</div>
 	</div>
 {:else}
@@ -144,18 +99,6 @@
 				height={600}
 				initialWindowDays={28}
 			/>
-
-			<!-- Placeholder for future charts -->
-			<!-- 
-			<HistoricalDataChart
-				data={globalProcessedData}
-				title="Muscle Mass & Hydration Trends"
-				leftAxisConfig={_muscleMassVsHydrationConfig.leftAxis}
-				rightAxisConfig={_muscleMassVsHydrationConfig.rightAxis}
-				height={400}
-				initialWindowDays={28}
-			/>
-			-->
 		</div>
 	</div>
 {/if}

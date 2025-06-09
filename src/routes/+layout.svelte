@@ -4,12 +4,21 @@
 	import { page } from '$app/stores';
 	import TabNavigation from '$lib/components/TabNavigation.svelte';
 	import ConfigSection from '$lib/components/ConfigSection.svelte';
+	import { dataService } from '$lib/services/data-service';
 
 	let isConfigured = false;
 	let isCheckingConfig = true;
 
 	onMount(async () => {
 		await checkConfiguration();
+
+		// Initialize data cache if app is configured
+		if (isConfigured) {
+			// Don't await this - let it load in background
+			dataService.initialize().catch((error) => {
+				console.error('Failed to initialize data service:', error);
+			});
+		}
 	});
 
 	async function checkConfiguration() {

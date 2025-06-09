@@ -2,6 +2,15 @@
 	import DataTable from './DataTable.svelte';
 	import type { BodyCompositionRow } from '$lib/types/data';
 
+	let dataTableRef: DataTable<BodyCompositionRow>;
+
+	// Export refresh method for parent components
+	export function refreshData() {
+		if (dataTableRef) {
+			dataTableRef.refreshData();
+		}
+	}
+
 	const headers = [
 		{ key: 'Date' as keyof BodyCompositionRow, label: 'Date', type: 'datetime-local' as const },
 		{
@@ -57,12 +66,31 @@
 	function formatDateForInput(dateStr: string): string {
 		if (!dateStr) return '';
 		try {
-			// Parse the date from "YYYY-MM-DD HH:MM:SS" format
-			const date = new Date(dateStr);
+			// Parse the date from "YYYY-MM-DD HH:MM:SS" format as local time
+			// Split the date string to avoid timezone conversion
+			const parts = dateStr.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
+			if (!parts) return '';
+
+			const [, year, month, day, hour, minute] = parts;
+			// Create date as local time using the constructor that doesn't apply timezone conversion
+			const date = new Date(
+				parseInt(year),
+				parseInt(month) - 1,
+				parseInt(day),
+				parseInt(hour),
+				parseInt(minute)
+			);
+
 			if (isNaN(date.getTime())) return '';
 
 			// Format for datetime-local input (YYYY-MM-DDTHH:MM)
-			return date.toISOString().slice(0, 16);
+			const yearStr = date.getFullYear().toString();
+			const monthStr = (date.getMonth() + 1).toString().padStart(2, '0');
+			const dayStr = date.getDate().toString().padStart(2, '0');
+			const hourStr = date.getHours().toString().padStart(2, '0');
+			const minuteStr = date.getMinutes().toString().padStart(2, '0');
+
+			return `${yearStr}-${monthStr}-${dayStr}T${hourStr}:${minuteStr}`;
 		} catch {
 			return '';
 		}
@@ -72,11 +100,31 @@
 		if (!inputValue) return '';
 		try {
 			// Convert from datetime-local format back to our format
-			const date = new Date(inputValue);
+			// Parse the datetime-local format (YYYY-MM-DDTHH:MM)
+			const parts = inputValue.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+			if (!parts) return inputValue;
+
+			const [, year, month, day, hour, minute] = parts;
+			// Create as local time
+			const date = new Date(
+				parseInt(year),
+				parseInt(month) - 1,
+				parseInt(day),
+				parseInt(hour),
+				parseInt(minute)
+			);
+
 			if (isNaN(date.getTime())) return inputValue;
 
 			// Format as "YYYY-MM-DD HH:MM:SS"
-			return date.toISOString().replace('T', ' ').slice(0, 19);
+			const yearStr = date.getFullYear().toString();
+			const monthStr = (date.getMonth() + 1).toString().padStart(2, '0');
+			const dayStr = date.getDate().toString().padStart(2, '0');
+			const hourStr = date.getHours().toString().padStart(2, '0');
+			const minuteStr = date.getMinutes().toString().padStart(2, '0');
+			const secondStr = date.getSeconds().toString().padStart(2, '0');
+
+			return `${yearStr}-${monthStr}-${dayStr} ${hourStr}:${minuteStr}:${secondStr}`;
 		} catch {
 			return inputValue;
 		}
@@ -89,6 +137,7 @@
 </script>
 
 <DataTable
+	bind:this={dataTableRef}
 	title="Data"
 	apiEndpoint="/api/data/raw"
 	{headers}
