@@ -151,135 +151,129 @@
 	}
 </script>
 
-<div class="data-container">
-	<div class="data-header">
-		<h2 class="data-title">{title}</h2>
-		<div class="data-actions">
-			{#if saving}
-				<span class="save-status saving">Saving...</span>
-			{:else}
-				<span class="save-status saved">Saved</span>
-			{/if}
-			<button class="btn" on:click={addNewRow}>
-				<svg
-					width="16"
-					height="16"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-				>
-					<path d="M12 5v14M5 12h14" />
-				</svg>
-				Add Row
-			</button>
-		</div>
+<div class="data-header">
+	<h2 class="data-title">{title}</h2>
+	<div class="data-actions">
+		{#if saving}
+			<span class="save-status saving">Saving...</span>
+		{:else}
+			<span class="save-status saved">Saved</span>
+		{/if}
+		<button class="btn" on:click={addNewRow}>
+			<svg
+				width="16"
+				height="16"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+			>
+				<path d="M12 5v14M5 12h14" />
+			</svg>
+			Add Row
+		</button>
 	</div>
+</div>
 
-	{#if loading}
-		<div class="loading-section">
-			<div class="loading-spinner"></div>
-			<p>Loading data...</p>
-		</div>
-	{:else if error}
-		<div class="error-container">
-			<p class="feedback error">{error}</p>
-			<button class="btn secondary" on:click={loadData}>Retry</button>
-		</div>
-	{:else}
-		<div class="data-table-container">
-			<table class="data-table">
-				<thead>
+{#if loading}
+	<div class="loading-section">
+		<div class="loading-spinner"></div>
+		<p>Loading data...</p>
+	</div>
+{:else if error}
+	<div class="error-container">
+		<p class="feedback error">{error}</p>
+		<button class="btn secondary" on:click={loadData}>Retry</button>
+	</div>
+{:else}
+	<div class="data-table-container">
+		<table class="data-table">
+			<thead>
+				<tr>
+					<th style="width: 60px;">Actions</th>
+					{#each headers as header (header.key)}
+						<th>{header.label}</th>
+					{/each}
+				</tr>
+			</thead>
+			<tbody>
+				{#each data as row, rowIndex (row.id || rowIndex)}
 					<tr>
-						<th style="width: 60px;">Actions</th>
+						<td style="text-align: center;">
+							<button
+								class="action-button delete"
+								on:click={() => deleteRow(rowIndex)}
+								title="Delete row"
+								aria-label="Delete row"
+							>
+								<svg
+									width="14"
+									height="14"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+								>
+									<path
+										d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c0 1 1 2 2 2v2"
+									/>
+								</svg>
+							</button>
+						</td>
 						{#each headers as header (header.key)}
-							<th>{header.label}</th>
+							<td>
+								{#if header.type === 'datetime-local'}
+									<input
+										type="datetime-local"
+										value={dateFormatter.formatForInput(row[header.key] as string)}
+										on:input={(e) =>
+											handleCellChange(
+												rowIndex,
+												header.key,
+												dateFormatter.formatForDisplay(e.currentTarget.value)
+											)}
+										class="data-table-input"
+										style="min-width: 180px;"
+									/>
+								{:else if header.type === 'date'}
+									<input
+										type="date"
+										value={row[header.key] as string}
+										on:input={(e) => handleCellChange(rowIndex, header.key, e.currentTarget.value)}
+										class="data-table-input"
+										style="min-width: 140px;"
+									/>
+								{:else if header.type === 'number'}
+									<input
+										type="text"
+										value={row[header.key] as string}
+										on:input={(e) => handleCellChange(rowIndex, header.key, e.currentTarget.value)}
+										class="data-table-input"
+										style="text-align: right;"
+										placeholder="--"
+									/>
+								{:else}
+									<input
+										type="text"
+										value={row[header.key] as string}
+										on:input={(e) => handleCellChange(rowIndex, header.key, e.currentTarget.value)}
+										class="data-table-input"
+										style="min-width: {header.key === 'Comments' ? '200px' : '120px'};"
+										placeholder={header.key === 'Comments' ? 'Add notes...' : ''}
+									/>
+								{/if}
+							</td>
 						{/each}
 					</tr>
-				</thead>
-				<tbody>
-					{#each data as row, rowIndex (row.id || rowIndex)}
-						<tr>
-							<td style="text-align: center;">
-								<button
-									class="action-button delete"
-									on:click={() => deleteRow(rowIndex)}
-									title="Delete row"
-									aria-label="Delete row"
-								>
-									<svg
-										width="14"
-										height="14"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2"
-									>
-										<path
-											d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c0 1 1 2 2 2v2"
-										/>
-									</svg>
-								</button>
-							</td>
-							{#each headers as header (header.key)}
-								<td>
-									{#if header.type === 'datetime-local'}
-										<input
-											type="datetime-local"
-											value={dateFormatter.formatForInput(row[header.key] as string)}
-											on:input={(e) =>
-												handleCellChange(
-													rowIndex,
-													header.key,
-													dateFormatter.formatForDisplay(e.currentTarget.value)
-												)}
-											class="data-table-input"
-											style="min-width: 180px;"
-										/>
-									{:else if header.type === 'date'}
-										<input
-											type="date"
-											value={row[header.key] as string}
-											on:input={(e) =>
-												handleCellChange(rowIndex, header.key, e.currentTarget.value)}
-											class="data-table-input"
-											style="min-width: 140px;"
-										/>
-									{:else if header.type === 'number'}
-										<input
-											type="number"
-											step="0.01"
-											value={row[header.key] as string}
-											on:input={(e) =>
-												handleCellChange(rowIndex, header.key, e.currentTarget.value)}
-											class="data-table-input"
-											style="text-align: right;"
-											placeholder="--"
-										/>
-									{:else}
-										<input
-											type="text"
-											value={row[header.key] as string}
-											on:input={(e) =>
-												handleCellChange(rowIndex, header.key, e.currentTarget.value)}
-											class="data-table-input"
-											style="min-width: {header.key === 'Comments' ? '200px' : '120px'};"
-											placeholder={header.key === 'Comments' ? 'Add notes...' : ''}
-										/>
-									{/if}
-								</td>
-							{/each}
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
+				{/each}
+			</tbody>
+		</table>
+	</div>
 
-		{#if data.length === 0}
-			<div class="empty-state">
-				<p>No data available</p>
-				<button class="btn" on:click={addNewRow}>Add First Entry</button>
-			</div>
-		{/if}
+	{#if data.length === 0}
+		<div class="empty-state">
+			<p>No data available</p>
+			<button class="btn" on:click={addNewRow}>Add First Entry</button>
+		</div>
 	{/if}
-</div>
+{/if}

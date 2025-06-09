@@ -152,6 +152,10 @@
 	}
 </script>
 
+<div class="data-header">
+	<h2 class="data-title">Import</h2>
+</div>
+
 <div class="auth-section">
 	<div class="data-source-row">
 		<label for="data-source" class="form-label"> Data Source: </label>

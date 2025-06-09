@@ -636,6 +636,14 @@ h1.gradient-heading {
 	min-height: 500px;
 }
 
+.data-container:first-child {
+	min-height: auto;
+}
+
+.data-container + .data-container {
+	margin-top: 2rem;
+}
+
 .data-header {
 	display: flex;
 	justify-content: space-between;
@@ -656,6 +664,12 @@ h1.gradient-heading {
 	display: flex;
 	align-items: center;
 	gap: 1rem;
+}
+
+.data-actions .btn {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
 }
 
 .save-status {
@@ -737,6 +751,12 @@ h1.gradient-heading {
 
 .data-table-input::placeholder {
 	color: var(--table-text-muted);
+}
+
+.comment-input {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .action-button {
