@@ -159,10 +159,16 @@ test.describe('Cycle Data Tab', () => {
 		await expect(page.locator('h2:has-text("Cycle Data")')).toBeVisible();
 		await expect(page.locator('table')).toBeVisible();
 
-		// Verify table headers
-		await expect(page.locator('th:has-text("Start Date")')).toBeVisible();
-		await expect(page.locator('th:has-text("End Date")')).toBeVisible();
-		await expect(page.locator('th:has-text("Cycle Name")')).toBeVisible();
+		// Verify table headers (with line breaks from space replacement)
+		await expect(
+			page.locator('th').filter({ hasText: 'Start' }).filter({ hasText: 'Date' })
+		).toBeVisible();
+		await expect(
+			page.locator('th').filter({ hasText: 'End' }).filter({ hasText: 'Date' })
+		).toBeVisible();
+		await expect(
+			page.locator('th').filter({ hasText: 'Cycle' }).filter({ hasText: 'Name' })
+		).toBeVisible();
 		await expect(page.locator('th:has-text("Comments")')).toBeVisible();
 	});
 

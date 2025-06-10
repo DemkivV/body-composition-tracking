@@ -2,12 +2,6 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { dataStore, dataActions } from '$lib/stores/data';
 	import { dataService } from '$lib/services/data-service';
-	import {
-		calculateTableColumnWidths,
-		applyTableColumnWidths,
-		logColumnWidthDecisions,
-		type ColumnWidthResult
-	} from '$lib/utils/table-layout';
 	import type { BodyCompositionRow, CycleDataRow } from '$lib/types/data';
 
 	export let title: string;
@@ -53,11 +47,6 @@
 	let saveTimeout: number | null = null;
 	let abortController: AbortController | null = null;
 
-	// Column width management
-	let tableElement: HTMLElement | undefined;
-	let columnWidths = new Map<keyof T, ColumnWidthResult>();
-	let hasCalculatedInitialLayout = false;
-
 	// Function to refresh data from API
 	export async function refreshData() {
 		if (useDataStore) {
@@ -69,31 +58,6 @@
 		} else {
 			await loadData();
 		}
-
-		// Recalculate layout after data refresh
-		setTimeout(() => calculateColumnWidths(), 100);
-	}
-
-	function calculateColumnWidths() {
-		if (!tableElement || data.length === 0) return;
-
-		// Get actual table width
-		const tableWidth = tableElement.offsetWidth || 1200;
-
-		// Calculate optimal widths
-		const newColumnWidths = calculateTableColumnWidths(headers, data, tableWidth);
-
-		// Apply widths to table
-		applyTableColumnWidths(tableElement, newColumnWidths);
-
-		// Debug logging (only in development)
-		if (process.env.NODE_ENV === 'development') {
-			logColumnWidthDecisions(newColumnWidths);
-		}
-
-		// Update state
-		columnWidths = newColumnWidths;
-		hasCalculatedInitialLayout = true;
 	}
 
 	onMount(async () => {
@@ -121,49 +85,7 @@
 		} else {
 			await loadData();
 		}
-
-		// Set up resize observer and initial layout
-		if (tableElement) {
-			setupResizeObserver();
-			// Initial layout calculation after data loads
-			setTimeout(() => calculateColumnWidths(), 100);
-		}
 	});
-
-	let resizeObserver: ResizeObserver | null = null;
-
-	// Track when we have the necessary conditions for layout calculation
-	let initialLayoutScheduled = false;
-
-	// Handle initial layout when table element becomes available and data is loaded
-	$: if (tableElement && data.length > 0 && !loading && !initialLayoutScheduled) {
-		initialLayoutScheduled = true;
-		setTimeout(() => {
-			calculateColumnWidths();
-			setupResizeObserver();
-		}, 50);
-	}
-
-	function setupResizeObserver() {
-		if (resizeObserver) {
-			resizeObserver.disconnect();
-		}
-
-		// Check if ResizeObserver is available (might not be in test environment)
-		if (typeof ResizeObserver === 'undefined') {
-			return;
-		}
-
-		resizeObserver = new ResizeObserver(() => {
-			if (hasCalculatedInitialLayout && tableElement) {
-				calculateColumnWidths();
-			}
-		});
-
-		if (tableElement) {
-			resizeObserver.observe(tableElement);
-		}
-	}
 
 	onDestroy(() => {
 		if (saveTimeout) {
@@ -171,9 +93,6 @@
 		}
 		if (abortController) {
 			abortController.abort();
-		}
-		if (resizeObserver) {
-			resizeObserver.disconnect();
 		}
 	});
 
@@ -263,10 +182,7 @@
 		}
 
 		saveTimeout = window.setTimeout(() => {
-			saveData().then(() => {
-				// Recalculate column widths after save to account for any content changes
-				setTimeout(() => calculateColumnWidths(), 50);
-			});
+			saveData();
 		}, 1000); // Auto-save after 1 second of inactivity
 	}
 
@@ -303,8 +219,6 @@
 			localData = [newRow, ...localData];
 		}
 		scheduleAutoSave();
-		// Immediate layout recalculation for new rows
-		setTimeout(() => calculateColumnWidths(), 100);
 	}
 
 	function deleteRow(index: number) {
@@ -319,30 +233,6 @@
 				localData = localData.filter((_, i) => i !== index);
 			}
 			scheduleAutoSave();
-			// Immediate layout recalculation for removed rows
-			setTimeout(() => calculateColumnWidths(), 100);
-		}
-	}
-
-	function getColumnStyle(headerKey: keyof T): string {
-		const result = columnWidths.get(headerKey);
-		return result ? `width: ${result.width};` : '';
-	}
-
-	function getHeaderTitleClass(headerKey: keyof T): string {
-		const result = columnWidths.get(headerKey);
-		if (!result) return '';
-
-		// Apply different classes based on number of title lines
-		switch (result.titleLines) {
-			case 1:
-				return 'header-title-single';
-			case 2:
-				return 'header-title-double';
-			case 3:
-				return 'header-title-triple';
-			default:
-				return 'header-title-multi';
 		}
 	}
 </script>
@@ -377,13 +267,14 @@
 		</div>
 	{:else}
 		<div class="data-table-container">
-			<table class="data-table" bind:this={tableElement}>
+			<table class="data-table">
 				<thead>
 					<tr>
-						<th style="width: 40px;">Actions</th>
-						{#each headers as header (header.key)}
-							<th style={getColumnStyle(header.key)} class={getHeaderTitleClass(header.key)}>
-								{header.label}
+						<th>Actions</th>
+						{#each headers as header, index (header.key)}
+							<th class:flex-column={index === headers.length - 1}>
+								<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+								{@html header.label.replace(/\s+/g, '<br>')}
 							</th>
 						{/each}
 					</tr>
@@ -405,11 +296,11 @@
 										title="Delete row"
 										aria-label="Delete row"
 									>
-										🗙
+										✗
 									</button>
 								</td>
-								{#each headers as header (header.key)}
-									<td style={getColumnStyle(header.key)}>
+								{#each headers as header, index (header.key)}
+									<td class:flex-column={index === headers.length - 1}>
 										{#if header.type === 'datetime-local'}
 											<input
 												type="datetime-local"
@@ -461,65 +352,98 @@
 </div>
 
 <style>
-	/* Dynamic header title classes for column width optimization */
-	.header-title-single {
-		white-space: nowrap;
-		text-align: center;
+	/* Force table to be content-based sizing */
+	.data-table {
+		table-layout: auto;
+		width: 100%;
 	}
 
-	.header-title-double {
-		white-space: normal;
+	/* Center all table headers and cells */
+	.data-table th,
+	.data-table td {
 		text-align: center;
+		white-space: normal;
 		line-height: 1.2;
 		padding: 8px 4px;
+		/* Force columns to be as narrow as content */
+		width: 1px;
+		/* Minimum width for data columns to accommodate numeric content */
+		min-width: 60px;
 	}
 
-	.header-title-triple {
-		white-space: normal;
-		text-align: center;
-		line-height: 1.1;
-		padding: 6px 2px;
+	/* Headers should be bottom-aligned vertically */
+	.data-table th {
+		vertical-align: bottom;
+	}
+
+	/* Compact headers with smaller font */
+	.data-table th {
 		font-size: 0.9em;
 	}
 
-	.header-title-multi {
-		white-space: normal;
-		text-align: center;
-		line-height: 1;
-		padding: 4px 2px;
-		font-size: 0.85em;
+	/* Actions column - force minimal width and center button */
+	.actions {
+		width: 1px;
+		white-space: nowrap;
+		min-width: auto; /* Override the general min-width for actions */
 	}
 
-	/* Smaller delete button */
+	/* Last column - flexible to use remaining space */
+	.flex-column {
+		width: auto !important;
+	}
+
+	/* Name columns need more space for content like "Cycle Name" */
+	.data-table td .comment-input {
+		min-width: 120px;
+	}
+
+	/* Center delete button within its cell */
 	.delete-btn {
-		width: 28px;
-		height: 28px;
-		min-width: 28px;
+		margin: 0 auto;
+		display: block;
+	}
+
+	/* Delete button styling - reuse standard button styles */
+	.delete-btn {
+		width: 32px;
+		height: 32px;
+		min-width: 32px;
 		padding: 0;
-		background: #ef4444;
-		border-radius: 0.25rem;
+		background: var(--gradient-primary);
+		color: white;
+		font-weight: 600;
+		border-radius: 0.5rem;
 		font-size: 1rem;
 		line-height: 1;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		transition: all 300ms cubic-bezier(0, 0, 0.2, 1);
+		box-shadow: 0 4px 20px rgb(14 165 233 / 0.3);
 	}
 
 	.delete-btn:hover {
-		background: #dc2626;
-		transform: translateY(-1px);
-		box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+		transform: scale(1.05);
+		box-shadow: var(--shadow-glow);
+		background: linear-gradient(135deg in oklch, var(--color-primary-500), var(--color-accent-500));
 	}
 
-	.actions {
-		width: 40px;
-		text-align: center;
-		padding: 0.25rem !important;
+	.delete-btn:active {
+		transform: scale(0.95);
 	}
 
 	.add-row-container {
 		display: flex;
 		gap: 0.5rem;
 		align-items: center;
+	}
+
+	/* Ensure inputs fill their cells appropriately and center content */
+	.table-input {
+		width: 100%;
+		box-sizing: border-box;
+		text-align: center;
+		min-width: 0; /* Allow inputs to shrink */
 	}
 </style>
