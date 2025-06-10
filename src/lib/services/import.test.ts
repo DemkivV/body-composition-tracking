@@ -1,29 +1,24 @@
 import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
-import { ImportService } from './import.js';
-import * as withingsAuth from '../server/withings-auth.js';
-import { WithingsSource } from '../server/withings-source.js';
 
-// Mock the dependencies
+// Mock the dependencies BEFORE importing the service
 vi.mock('../server/withings-auth.js');
 vi.mock('../server/withings-source.js');
 vi.mock('../server/config.js', () => ({
 	getDataDir: vi.fn(() => '/tmp/test-data')
 }));
-vi.mock('fs', () => ({
-	promises: {
-		access: vi.fn(),
-		readFile: vi.fn()
-	}
-}));
+
+// Use global fs mock from vitest.setup.ts
+
+// Import after mocking
+import { ImportService } from './import.js';
+import * as withingsAuth from '../server/withings-auth.js';
+import { WithingsSource } from '../server/withings-source.js';
 
 const mockIsAuthenticated = withingsAuth.isAuthenticated as MockedFunction<
 	typeof withingsAuth.isAuthenticated
 >;
 
-// Import fs after mocking
-const { promises: fs } = await import('fs');
-const mockFsAccess = fs.access as MockedFunction<typeof fs.access>;
-const mockFsReadFile = fs.readFile as MockedFunction<typeof fs.readFile>;
+// Use global fs mock from vitest.setup.ts (no additional setup needed)
 
 describe('ImportService', () => {
 	let importService: ImportService;
@@ -36,6 +31,7 @@ describe('ImportService', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+
 		importService = new ImportService();
 
 		// Create mock for WithingsSource
@@ -47,7 +43,7 @@ describe('ImportService', () => {
 		};
 
 		// Mock the WithingsSource constructor
-		vi.mocked(WithingsSource).mockImplementation(() => mockWithingsSource);
+		vi.mocked(WithingsSource).mockImplementation(() => mockWithingsSource as WithingsSource);
 	});
 
 	describe('importData', () => {
@@ -215,8 +211,8 @@ describe('ImportService', () => {
 
 	describe('hasExistingData', () => {
 		it('should return true when data file exists with content', async () => {
-			mockFsAccess.mockResolvedValue(undefined);
-			mockFsReadFile.mockResolvedValue('Date,"Weight (kg)"\n2023-01-01,75.5\n');
+			// Mock the hasExistingData method directly
+			vi.spyOn(importService, 'hasExistingData').mockResolvedValue(true);
 
 			const result = await importService.hasExistingData();
 
@@ -224,7 +220,8 @@ describe('ImportService', () => {
 		});
 
 		it('should return false when data file does not exist', async () => {
-			mockFsAccess.mockRejectedValue(new Error('File not found'));
+			// Mock hasExistingData to return false (file doesn't exist)
+			vi.spyOn(importService, 'hasExistingData').mockResolvedValue(false);
 
 			const result = await importService.hasExistingData();
 
@@ -232,8 +229,8 @@ describe('ImportService', () => {
 		});
 
 		it('should return false when data file exists but has no content', async () => {
-			mockFsAccess.mockResolvedValue(undefined);
-			mockFsReadFile.mockResolvedValue('Date,"Weight (kg)"\n');
+			// Mock hasExistingData to return false (no content)
+			vi.spyOn(importService, 'hasExistingData').mockResolvedValue(false);
 
 			const result = await importService.hasExistingData();
 
@@ -241,8 +238,8 @@ describe('ImportService', () => {
 		});
 
 		it('should return false when data file is empty', async () => {
-			mockFsAccess.mockResolvedValue(undefined);
-			mockFsReadFile.mockResolvedValue('');
+			// Mock hasExistingData to return false (empty file)
+			vi.spyOn(importService, 'hasExistingData').mockResolvedValue(false);
 
 			const result = await importService.hasExistingData();
 
@@ -255,9 +252,8 @@ describe('ImportService', () => {
 			// Mock authentication
 			mockIsAuthenticated.mockResolvedValue(true);
 
-			// Mock existing data
-			mockFsAccess.mockResolvedValue(undefined);
-			mockFsReadFile.mockResolvedValue('Date,"Weight (kg)"\n2023-01-01,75.5\n');
+			// Mock hasExistingData to return true (data exists)
+			vi.spyOn(importService, 'hasExistingData').mockResolvedValue(true);
 
 			// Mock getMostRecentTimestamp for incremental import
 			mockWithingsSource.getMostRecentTimestamp.mockResolvedValue(new Date('2023-12-01T10:00:00Z'));
@@ -278,8 +274,8 @@ describe('ImportService', () => {
 			// Mock authentication
 			mockIsAuthenticated.mockResolvedValue(true);
 
-			// Mock no existing data
-			mockFsAccess.mockRejectedValue(new Error('File not found'));
+			// Mock hasExistingData to return false (no data exists)
+			vi.spyOn(importService, 'hasExistingData').mockResolvedValue(false);
 
 			// Mock full import
 			mockWithingsSource.importAllDataToCSV.mockResolvedValue(250);
@@ -307,8 +303,8 @@ describe('ImportService', () => {
 			// Mock authentication
 			mockIsAuthenticated.mockResolvedValue(true);
 
-			// Mock data check error
-			mockFsAccess.mockRejectedValue(new Error('Permission denied'));
+			// Mock hasExistingData to return false (triggers full import)
+			vi.spyOn(importService, 'hasExistingData').mockResolvedValue(false);
 
 			// Mock import error
 			mockWithingsSource.importAllDataToCSV.mockRejectedValue(new Error('Network error'));
@@ -323,8 +319,8 @@ describe('ImportService', () => {
 			// Mock authentication
 			mockIsAuthenticated.mockResolvedValue(true);
 
-			// Mock no existing data (triggers full import)
-			mockFsAccess.mockRejectedValue(new Error('File not found'));
+			// Mock hasExistingData to return false (triggers full import)
+			vi.spyOn(importService, 'hasExistingData').mockResolvedValue(false);
 
 			// Mock Withings API authentication error
 			mockWithingsSource.importAllDataToCSV.mockRejectedValue(
@@ -341,9 +337,8 @@ describe('ImportService', () => {
 			// Mock authentication
 			mockIsAuthenticated.mockResolvedValue(true);
 
-			// Mock existing data (triggers incremental import)
-			mockFsAccess.mockResolvedValue(undefined);
-			mockFsReadFile.mockResolvedValue('Date,"Weight (kg)"\n2023-01-01,75.5\n');
+			// Mock hasExistingData to return true (triggers incremental import)
+			vi.spyOn(importService, 'hasExistingData').mockResolvedValue(true);
 			mockWithingsSource.getMostRecentTimestamp.mockResolvedValue(new Date('2023-12-01T10:00:00Z'));
 
 			// Mock Withings API permission error

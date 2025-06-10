@@ -1,4 +1,4 @@
-import type { Page, Route } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 // Define the types for our mock setups
 type TDataState = 'standard' | 'empty' | 'loading' | 'error' | false;
@@ -14,21 +14,21 @@ const standardData = [
 	{
 		id: 1,
 		Date: '2024-01-15 10:30:00',
-		'Weight (kg)': '75.5',
-		'Fat mass (kg)': '15.2',
-		'Bone mass (kg)': '3.1',
-		'Muscle mass (kg)': '32.8',
-		'Hydration (kg)': '24.4',
+		'Weight (kg)': '86.67',
+		'Fat mass (kg)': '11.86',
+		'Bone mass (kg)': '3.70',
+		'Muscle mass (kg)': '71.11',
+		'Hydration (kg)': '50.60',
 		Comments: 'Test entry 1'
 	},
 	{
 		id: 2,
 		Date: '2024-01-14 10:30:00',
-		'Weight (kg)': '75.8',
-		'Fat mass (kg)': '15.4',
-		'Bone mass (kg)': '3.1',
-		'Muscle mass (kg)': '32.9',
-		'Hydration (kg)': '24.4',
+		'Weight (kg)': '86.91',
+		'Fat mass (kg)': '12.71',
+		'Bone mass (kg)': '3.67',
+		'Muscle mass (kg)': '70.53',
+		'Hydration (kg)': '50.03',
 		Comments: 'Test entry 2'
 	}
 ];
@@ -47,7 +47,19 @@ const standardCycles = [
 export async function setupMocks(page: Page, options: MockOptions = {}) {
 	const { auth = 'loggedOut', data = 'standard' } = options;
 
-	// --- Specific Mocks (Based on options) ---
+	// --- Specific API Mocks Go First ---
+
+	// CRITICAL: Always set up configuration endpoint first
+	await page.route('/api/auth/configure', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: true,
+				configured: true
+			})
+		});
+	});
 
 	// Handle Auth State
 	if (auth === 'loggedIn') {
@@ -151,8 +163,16 @@ export async function setupMocks(page: Page, options: MockOptions = {}) {
 			}
 		});
 	} else if (data === 'loading') {
-		// Intercept but don't fulfill, causing it to hang until test timeout or manual fulfillment.
-		await page.route('**/api/data/raw', () => new Promise(() => {}));
+		// For loading state, we need to delay the response significantly but eventually respond
+		await page.route('**/api/data/raw', async (route) => {
+			// Wait 5 seconds to show loading state, then respond with data
+			await new Promise((resolve) => setTimeout(resolve, 5000));
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ success: true, data: [] })
+			});
+		});
 	} else if (data === 'error') {
 		await page.route('**/api/data/raw', (route) =>
 			route.fulfill({
@@ -160,49 +180,85 @@ export async function setupMocks(page: Page, options: MockOptions = {}) {
 				contentType: 'application/json',
 				body: JSON.stringify({
 					success: false,
-					error: 'Mocked server error: Database connection failed'
+					error: 'Server error'
 				})
 			})
 		);
 	}
-	// If data is `false`, we don't mock it, letting it fall to the catch-all.
 
-	// Mock other default endpoints that are always the same
-	await page.route('/api/auth/configure', (r) =>
-		r.fulfill({
+	// Handle cycles data based on data state
+	if (data === 'error') {
+		await page.route('**/api/data/cycles', (r) => {
+			r.fulfill({
+				status: 500,
+				contentType: 'application/json',
+				body: JSON.stringify({ success: false, error: 'Server error' })
+			});
+		});
+	} else if (data === 'empty') {
+		await page.route('**/api/data/cycles', (r) => {
+			const method = r.request().method();
+			if (method === 'GET') {
+				r.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					body: JSON.stringify({ success: true, data: [] })
+				});
+			} else {
+				r.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					body: JSON.stringify({ success: true, message: 'Operation completed (mocked)' })
+				});
+			}
+		});
+	} else if (data === 'loading') {
+		await page.route('**/api/data/cycles', async (r) => {
+			await new Promise((resolve) => setTimeout(resolve, 5000));
+			r.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ success: true, data: [] })
+			});
+		});
+	} else {
+		// Standard or default case
+		await page.route('**/api/data/cycles', (r) => {
+			const method = r.request().method();
+			if (method === 'GET') {
+				r.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					body: JSON.stringify({ success: true, data: standardCycles })
+				});
+			} else if (method === 'PUT') {
+				r.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					body: JSON.stringify({
+						success: true,
+						message: 'Cycle data saved successfully (mocked)'
+					})
+				});
+			} else {
+				r.fulfill({
+					status: 405,
+					contentType: 'application/json',
+					body: JSON.stringify({ success: false, error: `Method ${method} not allowed for cycles` })
+				});
+			}
+		});
+	}
+
+	// Mock import endpoints
+	await page.route('/api/import/has-data', (route) => {
+		route.fulfill({
 			status: 200,
 			contentType: 'application/json',
-			body: JSON.stringify({ success: true, configured: true })
-		})
-	);
-
-	await page.route('**/api/data/cycles', (r) => {
-		const method = r.request().method();
-		if (method === 'GET') {
-			r.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({ success: true, data: standardCycles })
-			});
-		} else if (method === 'PUT') {
-			r.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({
-					success: true,
-					message: 'Cycle data saved successfully (mocked)'
-				})
-			});
-		} else {
-			r.fulfill({
-				status: 405,
-				contentType: 'application/json',
-				body: JSON.stringify({ success: false, error: `Method ${method} not allowed for cycles` })
-			});
-		}
+			body: JSON.stringify({ hasData: false })
+		});
 	});
 
-	// Mock import endpoints to prevent any real import operations
 	await page.route('/api/import/**', (route) => {
 		route.fulfill({
 			status: 200,
@@ -211,14 +267,6 @@ export async function setupMocks(page: Page, options: MockOptions = {}) {
 				success: false,
 				error: 'Import disabled in test environment'
 			})
-		});
-	});
-
-	await page.route('/api/import/has-data', (route) => {
-		route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			body: JSON.stringify({ hasData: false })
 		});
 	});
 
@@ -231,7 +279,7 @@ export async function setupMocks(page: Page, options: MockOptions = {}) {
 		});
 	});
 
-	// Mock auth endpoints
+	// Mock other auth endpoints
 	await page.route('/api/auth/authenticate', (route) => {
 		route.fulfill({
 			status: 200,
@@ -265,43 +313,53 @@ export async function setupMocks(page: Page, options: MockOptions = {}) {
 		});
 	});
 
-	// --- THE SAFETY NET: CATCH-ALL GOES LAST! ---
-	// This is registered AFTER all specific mocks. Due to Playwright's LIFO order,
-	// it will be checked FIRST for any request, but since it uses a broad pattern,
-	// the more specific routes above will match first, and this will only catch
-	// truly unmocked requests.
-	await page.route('**/*', (route: Route) => {
-		const url = route.request().url();
+	// --- INTELLIGENT CATCH-ALL GOES LAST ---
+	// This creates a "default deny" policy that defers to specific handlers first
+	// Using route.fallback() for proper LIFO handling in Playwright
+	await page.route('**/*', (route) => {
+		const request = route.request();
+		const url = request.url();
 
-		// Allow requests to our own test server (for HTML, JS, CSS files)
-		if (url.includes('localhost:4174') || url.includes('localhost:4173')) {
-			return route.continue();
+		// For API calls, defer to more specific handlers first
+		// If no specific handler matches, this will potentially fail the test
+		if (url.includes('/api/')) {
+			return route.fallback();
 		}
 
-		// Allow certain static assets and common browser requests
-		if (
-			url.includes('favicon.ico') ||
-			url.includes('.js') ||
-			url.includes('.css') ||
-			url.includes('.svg')
-		) {
-			return route.continue();
+		// For non-API calls, check if it's an asset from our test server
+		const urlObj = new URL(url);
+		if (urlObj.hostname === 'localhost' && urlObj.port === '4173') {
+			// It's a JS/CSS/HTML file from our own test server. Let it load.
+			return route.fallback();
 		}
 
-		// Block and fail the test for any other unmocked request
-		console.error(`\n❌ BLOCKED UNMOCKED REQUEST: ${route.request().method()} ${url}\n`);
-		return route.abort('blockedbyclient');
+		// Allow requests to other common local development ports as well
+		if (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1') {
+			const port = urlObj.port;
+			if (['3000', '4173', '5173', '8080', '8000', '3001', '4174'].includes(port) || !port) {
+				return route.fallback();
+			}
+		}
+
+		// This is a third-party call (analytics, fonts, etc.). BLOCK IT.
+		console.error(`\n❌ BLOCKED UNMOCKED 3RD-PARTY REQUEST: ${request.method()} ${url}\n`);
+		return route.fulfill({
+			status: 418, // I'm a teapot - a fun, obvious error code for this
+			contentType: 'text/plain',
+			body: `Request to ${url} was blocked by the test safety net.`
+		});
 	});
 }
 
 // Legacy function names for backward compatibility during transition
 export async function setupBaseMocks(page: Page) {
+	// Just call the unified function with defaults
 	await setupMocks(page, { auth: 'loggedOut', data: 'standard' });
 }
 
-export async function mockLoggedInUser(page: Page) {
-	// This override approach is more fragile, but kept for compatibility
-	await page.route('/api/auth/status', (route) =>
+export async function mockLoggedInUser(_page: Page) {
+	// Just override the auth status specifically
+	await _page.route('/api/auth/status', (route) =>
 		route.fulfill({
 			status: 200,
 			contentType: 'application/json',
@@ -314,8 +372,10 @@ export async function mockLoggedInUser(page: Page) {
 	);
 }
 
-export async function setupStandardDataMocks(page: Page) {
-	await setupMocks(page, { auth: 'loggedOut', data: 'standard' });
+export async function setupStandardDataMocks(_page: Page) {
+	// This is now handled by setupBaseMocks, so this is a no-op to avoid conflicts
+	// The data mocking is already done in setupBaseMocks
+	return;
 }
 
 export async function setupEmptyDataMocks(page: Page) {

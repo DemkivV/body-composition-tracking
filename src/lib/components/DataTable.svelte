@@ -166,83 +166,52 @@
 	}
 
 	onDestroy(() => {
-		// Clear any pending timeouts to prevent dangling saves
 		if (saveTimeout) {
 			clearTimeout(saveTimeout);
-			saveTimeout = null;
 		}
-
-		// Cancel any in-flight requests
 		if (abortController) {
 			abortController.abort();
-			abortController = null;
 		}
-
-		// Clean up resize observer
 		if (resizeObserver) {
 			resizeObserver.disconnect();
-			resizeObserver = null;
 		}
 	});
 
 	async function loadData() {
+		if (useDataStore) return; // Store handles loading
+
+		localLoading = true;
+		localError = '';
+
 		try {
-			if (useDataStore) {
-				// This should not be called for store-managed data
-				return;
-			}
-
-			localLoading = true;
-
-			// Cancel any previous requests
-			if (abortController) {
-				abortController.abort();
-			}
-
-			abortController = new AbortController();
-
-			const response = await fetch(apiEndpoint, {
-				signal: abortController.signal
-			});
+			const response = await fetch(apiEndpoint);
 			const result = await response.json();
 
-			if (result.success && result.data) {
-				const sortedData = sortFunction(result.data);
-				localData = sortedData;
+			if (result.success) {
+				const parsedData = result.data || [];
+				localData = sortFunction ? sortFunction(parsedData) : parsedData;
 			} else {
 				localError = result.error || 'Failed to load data';
 			}
 		} catch (err) {
-			// Don't show error if request was aborted (component cleanup)
-			if (err instanceof Error && err.name === 'AbortError') {
-				return;
-			}
-			localError = 'Failed to fetch data';
+			localError = 'Failed to load data';
 			console.error('Error loading data:', err);
 		} finally {
 			localLoading = false;
-			abortController = null;
 		}
 	}
 
 	async function saveData() {
-		if (saving) return;
+		if (saving || abortController) return;
+
+		saving = true;
+		abortController = new AbortController();
 
 		try {
-			saving = true;
-
-			// Cancel any previous requests
-			if (abortController) {
-				abortController.abort();
-			}
-
-			abortController = new AbortController();
-
-			// Sort data before saving
-			const sortedData = sortFunction([...data]);
+			const sortedData = sortFunction ? sortFunction(data) : data;
 
 			const response = await fetch(apiEndpoint, {
-				method: 'PUT',
+				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				},
@@ -378,13 +347,17 @@
 	}
 </script>
 
-<div class="data-container">
+<div class="data-container" data-testid="data-table">
 	<div class="data-header">
 		<h2 class="data-title">{title}</h2>
 		<div class="add-row-container">
-			{#if saving}
-				<div class="status save-status saving">Saving...</div>
-			{/if}
+			<div class="status save-status" data-testid="save-status" class:saving>
+				{#if saving}
+					Saving...
+				{:else}
+					Data saved
+				{/if}
+			</div>
 			<button class="btn add-row-btn" on:click={addNewRow}>
 				<span class="icon">+</span>
 				<span class="text">Add Row</span>
@@ -403,88 +376,88 @@
 			<div class="status authenticating">Loading data...</div>
 		</div>
 	{:else}
-		<div class="table-wrapper">
+		<div class="data-table-container">
 			<table class="data-table" bind:this={tableElement}>
-			<thead>
-				<tr>
-					<th style="width: 40px;">Actions</th>
-					{#each headers as header (header.key)}
-						<th style={getColumnStyle(header.key)} class={getHeaderTitleClass(header.key)}>
-							{header.label}
-						</th>
-					{/each}
-				</tr>
-			</thead>
-			<tbody>
-				{#if data.length === 0}
+				<thead>
 					<tr>
-						<td colspan={headers.length + 1} class="empty-state">
-							No data available. Click "Add Row" to get started.
-						</td>
+						<th style="width: 40px;">Actions</th>
+						{#each headers as header (header.key)}
+							<th style={getColumnStyle(header.key)} class={getHeaderTitleClass(header.key)}>
+								{header.label}
+							</th>
+						{/each}
 					</tr>
-				{:else}
-					{#each data as row, rowIndex (row.id)}
+				</thead>
+				<tbody>
+					{#if data.length === 0}
 						<tr>
-							<td class="actions">
-								<button
-									class="btn delete-btn action-button delete"
-									on:click={() => deleteRow(rowIndex)}
-									title="Delete row"
-									aria-label="Delete row"
-								>
-									×
-								</button>
+							<td colspan={headers.length + 1} class="empty-state">
+								No data available. Click "Add Row" to get started.
 							</td>
-							{#each headers as header (header.key)}
-								<td style={getColumnStyle(header.key)}>
-									{#if header.type === 'datetime-local'}
-										<input
-											type="datetime-local"
-											class="table-input"
-											value={dateFormatter.formatForInput(String(row[header.key]))}
-											on:change={(e) =>
-												handleCellChange(
-													rowIndex,
-													header.key,
-													dateFormatter.formatForDisplay(e.currentTarget.value)
-												)}
-										/>
-									{:else if header.type === 'date'}
-										<input
-											type="date"
-											class="table-input"
-											value={String(row[header.key])}
-											on:change={(e) =>
-												handleCellChange(rowIndex, header.key, e.currentTarget.value)}
-										/>
-									{:else if header.type === 'number'}
-										<input
-											type="number"
-											step="0.1"
-											class="table-input"
-											value={String(row[header.key])}
-											on:change={(e) =>
-												handleCellChange(rowIndex, header.key, e.currentTarget.value)}
-										/>
-									{:else}
-										<input
-											type="text"
-											class="table-input comment-input"
-											value={String(row[header.key])}
-											title={String(row[header.key])}
-											on:change={(e) =>
-												handleCellChange(rowIndex, header.key, e.currentTarget.value)}
-										/>
-									{/if}
-								</td>
-							{/each}
 						</tr>
-					{/each}
-				{/if}
-			</tbody>
-		</table>
-	</div>
-{/if}
+					{:else}
+						{#each data as row, rowIndex (row.id)}
+							<tr>
+								<td class="actions">
+									<button
+										class="btn delete-btn action-button delete"
+										on:click={() => deleteRow(rowIndex)}
+										title="Delete row"
+										aria-label="Delete row"
+									>
+										🗙
+									</button>
+								</td>
+								{#each headers as header (header.key)}
+									<td style={getColumnStyle(header.key)}>
+										{#if header.type === 'datetime-local'}
+											<input
+												type="datetime-local"
+												class="table-input"
+												value={dateFormatter.formatForInput(String(row[header.key]))}
+												on:change={(e) =>
+													handleCellChange(
+														rowIndex,
+														header.key,
+														dateFormatter.formatForDisplay(e.currentTarget.value)
+													)}
+											/>
+										{:else if header.type === 'date'}
+											<input
+												type="date"
+												class="table-input"
+												value={String(row[header.key])}
+												on:change={(e) =>
+													handleCellChange(rowIndex, header.key, e.currentTarget.value)}
+											/>
+										{:else if header.type === 'number'}
+											<input
+												type="text"
+												inputmode="decimal"
+												class="table-input"
+												value={String(row[header.key])}
+												on:change={(e) =>
+													handleCellChange(rowIndex, header.key, e.currentTarget.value)}
+											/>
+										{:else}
+											<input
+												type="text"
+												class="table-input comment-input"
+												value={String(row[header.key])}
+												title={String(row[header.key])}
+												on:change={(e) =>
+													handleCellChange(rowIndex, header.key, e.currentTarget.value)}
+											/>
+										{/if}
+									</td>
+								{/each}
+							</tr>
+						{/each}
+					{/if}
+				</tbody>
+			</table>
+		</div>
+	{/if}
 </div>
 
 <style>

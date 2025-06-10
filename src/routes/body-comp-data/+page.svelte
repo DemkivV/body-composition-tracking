@@ -20,6 +20,4 @@
 	<AuthSection onDataImported={handleDataImported} />
 </div>
 
-<div class="data-container">
-	<RawDataTable bind:this={rawDataTableRef} />
-</div>
+<RawDataTable bind:this={rawDataTableRef} />

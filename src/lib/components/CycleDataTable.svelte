@@ -2,6 +2,14 @@
 	import DataTable from './DataTable.svelte';
 	import type { CycleDataRow } from '$lib/types/data';
 
+	let dataTableRef: DataTable<CycleDataRow>;
+	// Export refresh method for parent components
+	export function refreshData() {
+		if (dataTableRef) {
+			dataTableRef.refreshData();
+		}
+	}
+
 	const headers = [
 		{ key: 'Start Date' as keyof CycleDataRow, label: 'Start Date', type: 'date' as const },
 		{ key: 'End Date' as keyof CycleDataRow, label: 'End Date', type: 'date' as const },
@@ -37,13 +45,23 @@
 		formatForInput: (dateStr: string) => dateStr,
 		formatForDisplay: (inputValue: string) => inputValue
 	};
+
+	async function handleDataChange() {
+		if (dataTableRef) {
+			await dataTableRef.saveData();
+		}
+	}
 </script>
 
 <DataTable
+	bind:this={dataTableRef}
 	title="Cycle Data"
 	apiEndpoint="/api/data/cycles"
 	{headers}
 	createNewRow={createNewCycleDataRow}
 	sortFunction={sortCycleData}
 	{dateFormatter}
+	on:add={handleDataChange}
+	on:change={handleDataChange}
+	on:delete={handleDataChange}
 />

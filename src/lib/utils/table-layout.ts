@@ -31,16 +31,18 @@ function getColumnBaseWidth<T>(
 ): { width: number; isFlexible: boolean; reasoning: string } {
 	const headerText = header.label;
 	const headerWords = headerText.split(/\s+/);
-	const longestWord = Math.max(...headerWords.map(word => estimateTextWidth(word)));
+	const longestWord = Math.max(...headerWords.map((word) => estimateTextWidth(word)));
 	const minHeaderWidth = longestWord + 24; // padding for header
 
 	// Sample content to understand typical data length
 	const sampleSize = Math.min(data.length, 20);
-	const contentSamples = data.slice(0, sampleSize).map(row => String(row[header.key] || ''));
-	const maxContentLength = Math.max(...contentSamples.map(content => estimateTextWidth(content)));
-	const avgContentLength = contentSamples.length > 0 
-		? contentSamples.reduce((sum, content) => sum + estimateTextWidth(content), 0) / contentSamples.length 
-		: 80;
+	const contentSamples = data.slice(0, sampleSize).map((row) => String(row[header.key] || ''));
+	const maxContentLength = Math.max(...contentSamples.map((content) => estimateTextWidth(content)));
+	const avgContentLength =
+		contentSamples.length > 0
+			? contentSamples.reduce((sum, content) => sum + estimateTextWidth(content), 0) /
+				contentSamples.length
+			: 80;
 
 	// Column type-specific width determination
 	if (header.type === 'datetime-local') {
@@ -72,7 +74,8 @@ function getColumnBaseWidth<T>(
 	}
 
 	// Text columns - check if it's a comment/notes field (should be flexible)
-	const isCommentField = headerText.toLowerCase().includes('comment') ||
+	const isCommentField =
+		headerText.toLowerCase().includes('comment') ||
 		headerText.toLowerCase().includes('note') ||
 		String(header.key).toLowerCase().includes('comment');
 
@@ -107,7 +110,7 @@ function calculateHeaderLines(headerText: string, availableWidth: number): numbe
 
 	for (const word of words) {
 		const wordWidth = estimateTextWidth(word);
-		
+
 		if (currentLineWidth === 0) {
 			// First word on line
 			currentLineWidth = wordWidth;
@@ -141,14 +144,14 @@ export function calculateTableColumnWidths<T>(
 	const availableWidth = tableWidth - actionsWidth - 20; // 20px margin
 
 	// Calculate base widths for all columns
-	const columnSpecs = headers.map(header => ({
+	const columnSpecs = headers.map((header) => ({
 		header,
 		...getColumnBaseWidth(header, data)
 	}));
 
 	// Separate fixed and flexible columns
-	const fixedColumns = columnSpecs.filter(spec => !spec.isFlexible);
-	const flexColumns = columnSpecs.filter(spec => spec.isFlexible);
+	const fixedColumns = columnSpecs.filter((spec) => !spec.isFlexible);
+	const flexColumns = columnSpecs.filter((spec) => spec.isFlexible);
 
 	// Calculate total width needed by fixed columns
 	const fixedTotalWidth = fixedColumns.reduce((sum, spec) => sum + spec.width, 0);
@@ -167,7 +170,7 @@ export function calculateTableColumnWidths<T>(
 	fixedColumns.forEach(({ header, width, reasoning }) => {
 		const finalWidth = Math.max(40, Math.round(width * scale)); // Enforce 40px minimum
 		const titleLines = calculateHeaderLines(header.label, finalWidth);
-		
+
 		results.set(header.key, {
 			width: `${finalWidth}px`,
 			titleLines,
@@ -178,7 +181,7 @@ export function calculateTableColumnWidths<T>(
 	// Apply results for flexible columns
 	flexColumns.forEach(({ header, width, reasoning }) => {
 		let finalWidth: number;
-		
+
 		if (flexColumns.length > 0 && remainingWidth > 0) {
 			// Distribute remaining width among flexible columns
 			const flexWidth = Math.max(width * scale, remainingWidth / flexColumns.length);
@@ -189,7 +192,7 @@ export function calculateTableColumnWidths<T>(
 		}
 
 		const titleLines = calculateHeaderLines(header.label, finalWidth);
-		
+
 		results.set(header.key, {
 			width: `${finalWidth}px`,
 			titleLines,
@@ -198,18 +201,20 @@ export function calculateTableColumnWidths<T>(
 	});
 
 	// Final verification - ensure we don't exceed table width
-	const totalCalculatedWidth = Array.from(results.values())
-		.reduce((sum, result) => sum + parseInt(result.width), actionsWidth);
+	const totalCalculatedWidth = Array.from(results.values()).reduce(
+		(sum, result) => sum + parseInt(result.width),
+		actionsWidth
+	);
 
 	if (totalCalculatedWidth > tableWidth) {
 		// Emergency proportional scaling - but ensure minimum widths
 		const availableForColumns = tableWidth - actionsWidth - 10;
 		const minimumTotal = headers.length * 40; // 40px minimum per column
-		
+
 		if (availableForColumns < minimumTotal) {
 			// Even minimums don't fit - use absolute minimums
 			results.forEach((result, key) => {
-				const header = headers.find(h => h.key === key);
+				const header = headers.find((h) => h.key === key);
 				if (header) {
 					const titleLines = calculateHeaderLines(header.label, 40);
 					results.set(key, {
@@ -222,12 +227,12 @@ export function calculateTableColumnWidths<T>(
 		} else {
 			// Scale proportionally but enforce minimums
 			const emergencyScale = availableForColumns / (totalCalculatedWidth - actionsWidth);
-			
+
 			results.forEach((result, key) => {
 				const currentWidth = parseInt(result.width);
 				const scaledWidth = Math.max(40, Math.round(currentWidth * emergencyScale));
-				const header = headers.find(h => h.key === key);
-				
+				const header = headers.find((h) => h.key === key);
+
 				if (header) {
 					const titleLines = calculateHeaderLines(header.label, scaledWidth);
 					results.set(key, {
@@ -247,13 +252,13 @@ export function calculateTableColumnWidths<T>(
 export function calculateOptimalColumnWidth<T>(
 	header: ColumnConfig<T>,
 	data: T[],
-	tableWidth: number = 1200,
-	totalColumns: number = 1,
-	isFlexColumn: boolean = false
+	_tableWidth: number = 1200,
+	_totalColumns: number = 1,
+	_isFlexColumn: boolean = false
 ): ColumnWidthResult {
 	const spec = getColumnBaseWidth(header, data);
 	const titleLines = calculateHeaderLines(header.label, spec.width);
-	
+
 	return {
 		width: `${spec.width}px`,
 		titleLines,
@@ -293,24 +298,31 @@ export function debugTableWidths(): void {
 		{ key: 'Body Fat (%)', label: 'Body Fat (%)', type: 'number' },
 		{ key: 'Comments', label: 'Comments', type: 'text' }
 	];
-	
+
 	const testData = [
 		{ Date: '2023-01-01', 'Weight (kg)': '70.5', 'Body Fat (%)': '15.2', Comments: 'Feeling good' },
-		{ Date: '2023-01-02', 'Weight (kg)': '70.2', 'Body Fat (%)': '15.0', Comments: 'Slight improvement' }
+		{
+			Date: '2023-01-02',
+			'Weight (kg)': '70.2',
+			'Body Fat (%)': '15.0',
+			Comments: 'Slight improvement'
+		}
 	];
-	
+
 	console.group('🔍 Debug Table Width Calculation');
 	const results = calculateTableColumnWidths(testHeaders, testData, 800);
-	
+
 	console.log('Table width: 800px');
 	let totalWidth = 50; // actions column
-	
+
 	results.forEach((result, key) => {
 		const width = parseInt(result.width);
 		totalWidth += width;
-		console.log(`${String(key)}: ${result.width} (${result.titleLines} lines) - ${result.reasoning}`);
+		console.log(
+			`${String(key)}: ${result.width} (${result.titleLines} lines) - ${result.reasoning}`
+		);
 	});
-	
+
 	console.log(`Total width: ${totalWidth}px (should be ≤ 800px)`);
 	console.groupEnd();
 }

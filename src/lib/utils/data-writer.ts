@@ -9,7 +9,13 @@ export interface DataWriter {
 }
 
 export class FileSystemDataWriter implements DataWriter {
-	private readonly dataDir = join(process.cwd(), 'data');
+	private readonly dataDir: string;
+
+	constructor() {
+		// Use environment variable if set, otherwise fallback to default
+		const envDataDir = process.env.VITE_DATA_DIR || process.env.DATA_DIR;
+		this.dataDir = envDataDir || join(process.cwd(), 'data');
+	}
 
 	async writeCSV(filename: string, content: string): Promise<void> {
 		await this.ensureDataDir();

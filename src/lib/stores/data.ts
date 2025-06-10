@@ -133,7 +133,7 @@ export const dataActions = {
 	},
 
 	addBodyCompRow: (newRow: BodyCompositionRow) => {
-		dataStore.update((state) => ({
+		return dataStore.update((state) => ({
 			...state,
 			bodyCompositionData: [newRow, ...state.bodyCompositionData],
 			lastUpdated: new Date(),
@@ -142,7 +142,7 @@ export const dataActions = {
 	},
 
 	addCycleRow: (newRow: CycleDataRow) => {
-		dataStore.update((state) => ({
+		return dataStore.update((state) => ({
 			...state,
 			cycleData: [newRow, ...state.cycleData],
 			lastUpdated: new Date(),

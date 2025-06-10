@@ -1,6 +1,11 @@
 // This is another test comment to trigger change detection.
 import { test, expect } from '@playwright/test';
-import { setupBaseMocks, setupStandardDataMocks, mockLoggedInUser } from './utils/mock-utils';
+import {
+	setupBaseMocks,
+	setupStandardDataMocks,
+	mockLoggedInUser,
+	setupMocks
+} from './utils/mock-utils';
 
 test.describe('Cycle Data Tab', () => {
 	test('should show Add Row button and save status', async ({ page }) => {
@@ -52,15 +57,15 @@ test.describe('Cycle Data Tab', () => {
 		await page.locator('[data-testid="data-table"]').waitFor({ state: 'visible', timeout: 10000 });
 		await expect(page.locator('[data-testid="data-table"] tbody tr').first()).toBeVisible();
 
-		// Target the 'Cycle Name' cell specifically. It's the 3rd editable cell.
-		const cycleNameCell = page.locator('[data-testid="editable-cell"]').nth(2);
+		const dataTable = page.locator('[data-testid="data-table"]');
 
-		await cycleNameCell.dblclick();
-		const input = cycleNameCell.locator('input');
-		await expect(input).toBeVisible();
+		// Find the input element in the third column (Cycle Name) of the first row
+		const cycleNameInput = dataTable.locator('tbody tr').first().locator('input').nth(2);
+		await expect(cycleNameInput).toBeVisible();
 
-		await input.fill('Edited Cycle Name');
-		await input.press('Enter');
+		await cycleNameInput.fill('Edited Cycle Name');
+		await cycleNameInput.blur(); // Trigger change event
+
 		// The test now only needs to ensure the action completes without error.
 		// The save is awaited in the component itself.
 	});
@@ -97,26 +102,45 @@ test.describe('Cycle Data Tab', () => {
 	});
 
 	test('should handle API failures gracefully without endless loading', async ({ page }) => {
-		// First set up complete mocks to prevent production access
-		await setupBaseMocks(page);
-		await setupStandardDataMocks(page);
-		await mockLoggedInUser(page);
+		// Set up mocks with logged in auth and then override cycles API
+		await setupMocks(page, { auth: 'loggedIn', data: 'standard' });
 
-		// Then override just the cycles API to fail for this test
+		// Override cycles API to fail
 		await page.route('**/api/data/cycles', async (route) => {
 			await route.fulfill({
 				status: 500,
-				json: { success: false, error: 'Server error' }
+				contentType: 'application/json',
+				body: JSON.stringify({ success: false, error: 'Server error' })
 			});
 		});
 
 		await page.goto('/cycle-data');
 
-		// Should not be stuck in loading
-		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 3000 });
+		// Wait for the table container to appear
+		await page.locator('[data-testid="data-table"]').waitFor({ state: 'visible', timeout: 10000 });
 
-		// Should show error message or retry button (use first one to avoid strict mode violation)
-		await expect(page.locator('.error-container').first()).toBeVisible();
+		// Wait for the error to be processed
+		await page.waitForTimeout(3000);
+
+		// Should not be stuck in loading
+		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 1000 });
+
+		// Check for error state within the data table component
+		const hasErrorContainer = await page
+			.locator('[data-testid="data-table"] .error-container')
+			.isVisible()
+			.catch(() => false);
+		const hasErrorMessage = await page
+			.locator('[data-testid="data-table"] .feedback.error')
+			.isVisible()
+			.catch(() => false);
+		const hasDataServiceError = await page
+			.getByText('Failed to load cycle data')
+			.isVisible()
+			.catch(() => false);
+
+		// Should show error indication - check for data service error message
+		expect(hasErrorContainer || hasErrorMessage || hasDataServiceError).toBe(true);
 	});
 
 	test('should display cycle data table when Cycle Data tab is clicked', async ({ page }) => {

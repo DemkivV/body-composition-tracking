@@ -20,8 +20,8 @@ export default defineConfig({
 
 	// Configure web server for tests
 	webServer: {
-		command: 'npm run build && npm run preview',
-		port: 4174,
+		command: 'cmd /c "npm run build && npm run preview"',
+		port: 4173,
 		reuseExistingServer: !process.env.CI,
 		// CRITICAL: Set environment variable for the server process
 		env: {
@@ -31,7 +31,7 @@ export default defineConfig({
 	},
 
 	use: {
-		baseURL: 'http://localhost:4174',
+		baseURL: 'http://localhost:4173',
 		trace: 'on-first-retry',
 		screenshot: 'only-on-failure',
 		video: 'retain-on-failure'
