@@ -245,7 +245,7 @@
 				{#if saving}
 					Saving...
 				{:else}
-					Data saved
+					Saved
 				{/if}
 			</div>
 			<button class="btn add-row-btn" on:click={addNewRow}>

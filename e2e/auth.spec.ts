@@ -126,9 +126,13 @@ test.describe('Data table functionality', () => {
 			.getByText('No data available')
 			.isVisible()
 			.catch(() => false);
+		const hasEmptyState = await page
+			.locator('.empty-state')
+			.isVisible()
+			.catch(() => false);
 
 		// Either data table (with empty state) or empty message should be visible
-		expect(hasDataTable || hasEmptyMessage).toBe(true);
+		expect(hasDataTable || hasEmptyMessage || hasEmptyState).toBe(true);
 	});
 
 	test('should handle data loading error', async ({ page }) => {

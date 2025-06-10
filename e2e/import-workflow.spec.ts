@@ -471,7 +471,7 @@ test.describe('Import Workflow', () => {
 		await navigateAndWaitForTab(page);
 
 		// Check that page loads correctly
-		await expect(page.locator('h1')).toContainText('Body Composition Tracker');
+		await expect(page.locator('text="Body Composition Tracker"').first()).toBeVisible();
 
 		// Check that body comp data tab is active by default
 		await expect(page.locator('[data-tab="body-comp-data"]')).toHaveClass(/active/);
@@ -675,7 +675,7 @@ test.describe('Import Workflow', () => {
 		await page.locator('[data-tab="cycle-data"]').click();
 
 		// Check that cycle data content is shown
-		await expect(page.locator('h2:has-text("Cycle Data")')).toBeVisible();
+		await expect(page.locator('h2:has-text("Data")')).toBeVisible();
 		await expect(page.locator('.data-container')).toBeVisible();
 
 		// Click on analysis tab

@@ -97,7 +97,7 @@ test.describe('Cycle Data Tab', () => {
 		await expect(page.locator('.loading-section')).not.toBeVisible({ timeout: 3000 });
 
 		// Verify the actual content loaded
-		await expect(page.locator('h2:has-text("Cycle Data")')).toBeVisible();
+		await expect(page.locator('h2:has-text("Data")')).toBeVisible();
 		await expect(page.locator('table')).toBeVisible();
 	});
 
@@ -156,7 +156,7 @@ test.describe('Cycle Data Tab', () => {
 		await expect(page).toHaveURL('/cycle-data');
 
 		// Verify the cycle data table is displayed
-		await expect(page.locator('h2:has-text("Cycle Data")')).toBeVisible();
+		await expect(page.locator('h2:has-text("Data")')).toBeVisible();
 		await expect(page.locator('table')).toBeVisible();
 
 		// Verify table headers (with line breaks from space replacement)

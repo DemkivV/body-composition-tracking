@@ -55,7 +55,7 @@
 
 <DataTable
 	bind:this={dataTableRef}
-	title="Cycle Data"
+	title="Data"
 	apiEndpoint="/api/data/cycles"
 	{headers}
 	createNewRow={createNewCycleDataRow}
