@@ -1,0 +1,25 @@
+@use './theme-glassmorphism.scss';
+
+.btn,
+.tab-nav button.active {
+	@extend %glass-slab-themed;
+}
+
+.tab-nav button:not(.active) {
+	@extend %glass-slab-neutral;
+	@extend %glass-effect-interactive;
+	@extend %glass-effect-shine;
+	@extend %glass-effect-themed-hover;
+}
+
+.data-container,
+.data-table-container,
+.feedback,
+.save-status {
+	@extend %glass-slab-neutral;
+}
+
+.btn.authenticated,
+.feedback.authenticated {
+	@extend %glass-slab-positive;
+}

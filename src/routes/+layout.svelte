@@ -1,5 +1,5 @@
 <script lang="ts">
-	import '../app.css';
+	import '../app.scss';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import TabNavigation from '$lib/components/TabNavigation.svelte';
