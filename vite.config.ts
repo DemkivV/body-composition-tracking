@@ -5,6 +5,16 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
+	css: {
+		preprocessorOptions: {
+			scss: {
+				additionalData: `
+					// Add global SCSS imports here if needed
+					// @import 'src/styles/variables.scss';
+				`
+			}
+		}
+	},
 	server: {
 		watch: {
 			ignored: [
