@@ -67,8 +67,7 @@ h1.gradient-heading {
 
 	/* Permanent enhanced glow effect like button hover + floating shadows */
 	filter: drop-shadow(var(--shadow-glow)) drop-shadow(0 20px 40px rgb(0 0 0 / 0.4))
-		drop-shadow(0 10px 20px rgb(14 165 233 / 0.3))
-		drop-shadow(0 5px 10px rgb(255 255 255 / 0.1));
+		drop-shadow(0 10px 20px rgb(14 165 233 / 0.3)) drop-shadow(0 5px 10px rgb(255 255 255 / 0.1));
 
 	/* Simple transition for hover effect */
 	transition: filter 250ms ease-in-out;
@@ -77,8 +76,7 @@ h1.gradient-heading {
 /* Enhanced hover effect - elevates the floating even more */
 h1.gradient-heading:hover {
 	filter: drop-shadow(var(--shadow-glow)) drop-shadow(0 30px 60px rgb(0 0 0 / 0.5))
-		drop-shadow(0 15px 30px rgb(14 165 233 / 0.4))
-		drop-shadow(0 8px 16px rgb(255 255 255 / 0.15));
+		drop-shadow(0 15px 30px rgb(14 165 233 / 0.4)) drop-shadow(0 8px 16px rgb(255 255 255 / 0.15));
 }
 
 /* Tab navigation layout */
@@ -269,12 +267,7 @@ h1.gradient-heading:hover {
 	left: 0;
 	right: 0;
 	bottom: 0;
-	background: linear-gradient(
-		45deg,
-		transparent 0%,
-		rgb(255 255 255 / 0.05) 50%,
-		transparent 100%
-	);
+	background: linear-gradient(45deg, transparent 0%, rgb(255 255 255 / 0.05) 50%, transparent 100%);
 	opacity: 0.7;
 }
 
@@ -304,7 +297,11 @@ h1.gradient-heading:hover {
 			rgb(255 255 255 / 0.03) 50%,
 			rgb(255 255 255 / 0.08) 100%
 		),
-		linear-gradient(135deg, oklch(from var(--color-red-900) l c h / 0.4), oklch(from var(--color-red-800) l c h / 0.35));
+		linear-gradient(
+			135deg,
+			oklch(from var(--color-red-900) l c h / 0.4),
+			oklch(from var(--color-red-800) l c h / 0.35)
+		);
 	color: var(--color-red-300);
 }
 
@@ -317,7 +314,11 @@ h1.gradient-heading:hover {
 			rgb(255 255 255 / 0.03) 50%,
 			rgb(255 255 255 / 0.08) 100%
 		),
-		linear-gradient(135deg, oklch(from var(--color-amber-900) l c h / 0.4), oklch(from var(--color-amber-800) l c h / 0.35));
+		linear-gradient(
+			135deg,
+			oklch(from var(--color-amber-900) l c h / 0.4),
+			oklch(from var(--color-amber-800) l c h / 0.35)
+		);
 	color: var(--color-amber-300);
 }
 
@@ -330,7 +331,11 @@ h1.gradient-heading:hover {
 			rgb(255 255 255 / 0.03) 50%,
 			rgb(255 255 255 / 0.08) 100%
 		),
-		linear-gradient(135deg, oklch(from var(--color-blue-900) l c h / 0.4), oklch(from var(--color-blue-700) l c h / 0.35));
+		linear-gradient(
+			135deg,
+			oklch(from var(--color-blue-900) l c h / 0.4),
+			oklch(from var(--color-blue-700) l c h / 0.35)
+		);
 	color: var(--color-blue-300);
 }
 
@@ -710,12 +715,7 @@ h1.gradient-heading:hover {
 	left: 0;
 	right: 0;
 	bottom: 0;
-	background: linear-gradient(
-		45deg,
-		transparent 0%,
-		rgb(255 255 255 / 0.05) 50%,
-		transparent 100%
-	);
+	background: linear-gradient(45deg, transparent 0%, rgb(255 255 255 / 0.05) 50%, transparent 100%);
 	opacity: 0.7;
 }
 
@@ -728,7 +728,11 @@ h1.gradient-heading:hover {
 			rgb(255 255 255 / 0.03) 50%,
 			rgb(255 255 255 / 0.08) 100%
 		),
-		linear-gradient(135deg, oklch(from var(--color-amber-800) l c h / 0.4), oklch(from var(--color-amber-700) l c h / 0.35));
+		linear-gradient(
+			135deg,
+			oklch(from var(--color-amber-800) l c h / 0.4),
+			oklch(from var(--color-amber-700) l c h / 0.35)
+		);
 	color: var(--color-amber-300);
 }
 
