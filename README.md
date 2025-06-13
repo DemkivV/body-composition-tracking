@@ -1,5 +1,8 @@
 # Body Composition Tracker
 
+> **🧪 Experimental Project**
+> This is an experimental hybrid development project combining **human vibe-coding** with **AI pair programming**. It serves as a testing ground for exploring new development methodologies, where creative human intuition meets systematic AI assistance. The codebase reflects this collaborative approach - some patterns emerge from human creativity, others from AI optimization, creating a unique development experience.
+
 A SvelteKit web application for tracking and analyzing body composition data from Withings API.
 
 ## Features
@@ -85,12 +88,11 @@ npm run build
 
 ## Testing
 
-The project includes comprehensive test coverage with an **isolated testing environment** that prevents interference with your development setup:
+The project includes comprehensive test coverage:
 
-- **Unit Tests**: 150 tests covering stores, services, and components
-- **E2E Tests**: 44 tests covering complete user workflows
+- **Unit Tests**: 200 tests covering stores, services, and components
+- **E2E Tests**: 38 tests covering complete user workflows
 - **Test Runner**: Vitest for unit tests, Playwright for E2E
-- **Isolated Environment**: Tests run in `.tmp/test-build/` to avoid dev server conflicts
 
 ### Test Commands
 
@@ -107,29 +109,6 @@ npm run test:unit:dev
 # Run E2E tests only
 npm run test:e2e
 ```
-
-### Optimized Testing Performance
-
-The testing setup uses an **isolated build environment** for maximum performance and safety:
-
-- **Fast Re-runs**: Test builds are cached in `.tmp/test-build/` for instant startup
-- **No Dev Interference**: Your development server at `localhost:5173` is never affected
-- **Data Safety**: Tests can only access temporary data, never your production files
-- **Parallel Execution**: All 44 E2E tests run in parallel on 12 cores in ~11 seconds
-
-### Managing Test Builds
-
-The test build is automatically cached for performance:
-
-```bash
-# Force a fresh test build (if needed)
-rm -rf .tmp
-
-# Or on Windows
-rmdir /s .tmp
-```
-
-**⚠️ Note**: The `.tmp/` directory contains cached test builds and is kept for faster test re-runs. It can be safely deleted to force a fresh build, but will slow down the next test run.
 
 ## Architecture
 
@@ -160,8 +139,3 @@ rmdir /s .tmp
 - Clear your stored tokens by deleting `data/authentication_token_withings.json`
 - Try the authentication flow again
 - Check browser console for detailed error messages
-
-### Development Issues
-
-- Environment variables in `.env` are only used as fallbacks during development
-- The app should work without any `.env` configuration for end users
